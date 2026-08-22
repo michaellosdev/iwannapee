@@ -6140,9 +6140,7 @@ body {
 }
 
 .how-section {
-  background:
-    radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.62), transparent 18rem),
-    linear-gradient(135deg, #d5f4ff 0%, #eaf8ff 52%, #c7efff 100%);
+  background: var(--paper);
 }
 
 .explorer-section,
