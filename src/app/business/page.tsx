@@ -6,6 +6,7 @@ import { CampaignLifecycleControls } from "@/components/campaign-lifecycle-contr
 import { BusinessProfileManager } from "@/components/business-profile-manager";
 import { ResumePromotionPaymentButton } from "@/components/resume-promotion-payment-button";
 import { formatPrice } from "@/lib/advertising";
+import { normalizePromotionColorKey, promotionColorClassName, type PromotionColorKey } from "@/lib/promotion-colors";
 import type { PublicBusinessProfile } from "@/lib/public-directory";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -32,6 +33,7 @@ type PromotionAnalyticsRow = {
   price_cents: number;
   placement_bid_cents: number;
   support_amount_cents: number;
+  color_key: PromotionColorKey | null;
   impression_count: number | string;
   detail_open_count: number | string;
   promo_copy_count: number | string;
@@ -104,7 +106,7 @@ export default async function BusinessAnalyticsPage() {
       {campaigns.length > 0 ? (
         <section className="business-campaign-list" aria-label="Your promotion campaigns">
           {campaigns.map((campaign) => (
-            <article className="business-campaign-card" key={campaign.campaign_id}>
+            <article className={`business-campaign-card ${promotionColorClassName(normalizePromotionColorKey(campaign.color_key))}`} key={campaign.campaign_id}>
               <div className="business-campaign-heading">
                 <div>
                   <span className={`campaign-status campaign-status-${campaign.status}`}>{campaign.is_test ? "Test" : campaign.status.replaceAll("_", " ")}</span>

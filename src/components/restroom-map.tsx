@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import L from "leaflet";
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { promotionColorClassName } from "@/lib/promotion-colors";
 import type { Coordinates, Restroom } from "@/types/restroom";
 
 type RestroomMapProps = {
@@ -32,7 +33,7 @@ function restroomIcon(restroom: Restroom, selected: boolean) {
   const promoted = Boolean(restroom.promotion);
   return L.divIcon({
     className: "map-marker-shell",
-    html: `<div class="map-marker${promoted ? " featured" : ""}${selected ? " selected" : ""}"><span>${promoted ? "SP" : restroom.reviewCount ? restroom.rating.toFixed(1) : "WC"}</span><i></i></div>`,
+    html: `<div class="map-marker${promoted ? ` featured ${promotionColorClassName(restroom.promotion!.colorKey)}` : ""}${selected ? " selected" : ""}"><span>${promoted ? "SP" : restroom.reviewCount ? restroom.rating.toFixed(1) : "WC"}</span><i></i></div>`,
     iconAnchor: [25, 44],
     iconSize: [50, 50],
     popupAnchor: [0, -44],

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getAdvertisingOffer } from "@/lib/advertising";
 import { formatHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
+import { normalizePromotionColorKey } from "@/lib/promotion-colors";
 import { captchaRequiredResponse, hasCaptchaSession } from "@/lib/security/captcha";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 import { timeZoneAt } from "@/lib/server/timezone";
@@ -24,6 +25,7 @@ type CheckoutBody = {
   headline?: unknown;
   offerText?: unknown;
   promoCode?: unknown;
+  colorKey?: unknown;
   qrTargetUrl?: unknown;
   destinationUrl?: unknown;
   radiusMiles?: unknown;
@@ -125,6 +127,7 @@ export async function POST(request: Request) {
       headline: textField(body.headline, "Headline", 4, 100),
       offer_text: textField(body.offerText, "Offer", 4, 280),
       promo_code: textField(body.promoCode, "Promo code", 0, 40, false).toUpperCase() || null,
+      color_key: normalizePromotionColorKey(body.colorKey),
       qr_target_url: urlField(body.qrTargetUrl, "QR destination"),
       destination_url: urlField(body.destinationUrl, "Business website"),
       radius_meters: radiusMeters,

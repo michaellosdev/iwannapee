@@ -21,6 +21,12 @@ import { CaptchaWidget } from "@/components/captcha-widget";
 import { WeeklyHoursEditor } from "@/components/weekly-hours-editor";
 import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
 import { createHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
+import {
+  DEFAULT_PROMOTION_COLOR,
+  PROMOTION_COLORS,
+  promotionColorClassName,
+  type PromotionColorKey,
+} from "@/lib/promotion-colors";
 import { SUPPORT_EMAIL } from "@/lib/site";
 import type { Coordinates, LocationSearchResult } from "@/types/restroom";
 
@@ -51,6 +57,7 @@ export function AdvertiseDialog({
   const [headline, setHeadline] = useState("");
   const [offerText, setOfferText] = useState("");
   const [promoCode, setPromoCode] = useState("");
+  const [colorKey, setColorKey] = useState<PromotionColorKey>(DEFAULT_PROMOTION_COLOR);
   const [qrTargetUrl, setQrTargetUrl] = useState("");
   const [destinationUrl, setDestinationUrl] = useState("");
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
@@ -150,6 +157,7 @@ export function AdvertiseDialog({
           headline,
           offerText,
           promoCode,
+          colorKey,
           qrTargetUrl,
           destinationUrl,
           radiusMiles,
@@ -266,6 +274,25 @@ export function AdvertiseDialog({
                   <input onChange={(event) => setDestinationUrl(event.target.value)} placeholder="https://yourbusiness.com" type="url" value={destinationUrl} />
                 </label>
               </div>
+              <div className="promotion-color-field">
+                <span>Promotion color</span>
+                <div aria-label="Promotion color" className="promotion-color-picker" role="radiogroup">
+                  {PROMOTION_COLORS.map((color) => (
+                    <button
+                      aria-checked={colorKey === color.key}
+                      aria-label={color.label}
+                      className={`${promotionColorClassName(color.key)}${colorKey === color.key ? " active" : ""}`}
+                      key={color.key}
+                      onClick={() => setColorKey(color.key)}
+                      role="radio"
+                      type="button"
+                    >
+                      <span />
+                      <small>{color.label}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </fieldset>
 
             <fieldset>
@@ -343,7 +370,7 @@ export function AdvertiseDialog({
 
         <aside className="business-promotion-preview-pane" aria-label="Sponsored promotion preview">
           <div className="business-promotion-preview-heading"><Sparkles size={16} /><span>Live preview</span></div>
-          <div className="promotion-preview-card">
+          <div className={`promotion-preview-card ${promotionColorClassName(colorKey)}`}>
             <div className="promotion-preview-topline"><span>{placementBidCents > 0 ? "Priority sponsored" : "Sponsored"}</span><small>{radiusMiles} mi radius</small></div>
             <div className="promotion-preview-place">
               <div className="promotion-preview-pin"><MapPin size={21} /></div>

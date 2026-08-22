@@ -6433,3 +6433,138 @@ body {
   background: #e9faff;
   border-color: var(--ink);
 }
+
+/* Hero cleanup requested after the brand refresh. */
+.hero {
+  background: linear-gradient(180deg, #77ddff 0%, #c9f1ff 55%, #effaff 100%);
+}
+
+.hero::before {
+  display: none;
+}
+
+.hero-trust span {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 78, 126, 0.15);
+  border-radius: 999px;
+  box-shadow: 0 5px 14px rgba(0, 83, 135, 0.09);
+  padding: 7px 10px;
+}
+
+/* Fixed campaign palette: users select a safe color token, never arbitrary CSS. */
+.promotion-color-aqua { --promotion-surface: #c9f5ff; --promotion-surface-strong: #88e9fa; --promotion-accent: #00a9d8; --promotion-ink: #001d3f; --promotion-shadow: #087daa; }
+.promotion-color-sky { --promotion-surface: #d9efff; --promotion-surface-strong: #a7d9ff; --promotion-accent: #268fd1; --promotion-ink: #082642; --promotion-shadow: #377fae; }
+.promotion-color-blue { --promotion-surface: #d5e0ff; --promotion-surface-strong: #aebfff; --promotion-accent: #4868d8; --promotion-ink: #111d55; --promotion-shadow: #4158a7; }
+.promotion-color-mint { --promotion-surface: #d7f8e8; --promotion-surface-strong: #a8edcb; --promotion-accent: #159b6c; --promotion-ink: #063b2c; --promotion-shadow: #23805e; }
+.promotion-color-green { --promotion-surface: #e2f5c8; --promotion-surface-strong: #c4e991; --promotion-accent: #679628; --promotion-ink: #293c0c; --promotion-shadow: #66832f; }
+.promotion-color-yellow { --promotion-surface: #fff3b8; --promotion-surface-strong: #ffe27a; --promotion-accent: #d39a00; --promotion-ink: #4a3400; --promotion-shadow: #a77e14; }
+.promotion-color-orange { --promotion-surface: #ffe1bd; --promotion-surface-strong: #ffc885; --promotion-accent: #df7716; --promotion-ink: #4b2505; --promotion-shadow: #a96526; }
+.promotion-color-coral { --promotion-surface: #ffd9d1; --promotion-surface-strong: #ffad9d; --promotion-accent: #de5e4a; --promotion-ink: #4b1912; --promotion-shadow: #a84f42; }
+.promotion-color-pink { --promotion-surface: #ffddeb; --promotion-surface-strong: #ffb6d4; --promotion-accent: #cf4f86; --promotion-ink: #49152c; --promotion-shadow: #a64c72; }
+.promotion-color-lavender { --promotion-surface: #e9ddff; --promotion-surface-strong: #ccb6ff; --promotion-accent: #7b55cf; --promotion-ink: #291653; --promotion-shadow: #67509c; }
+
+.promotion-color-field {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.promotion-color-field > span {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.promotion-color-picker {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.promotion-color-picker button {
+  align-items: center;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  padding: 7px;
+}
+
+.promotion-color-picker button > span {
+  background: var(--promotion-surface-strong);
+  border: 2px solid var(--promotion-accent);
+  border-radius: 50%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  flex: 0 0 auto;
+  height: 20px;
+  width: 20px;
+}
+
+.promotion-color-picker button small {
+  font-size: 8px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.promotion-color-picker button.active {
+  background: var(--promotion-surface);
+  border-color: var(--promotion-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--promotion-accent) 20%, transparent);
+}
+
+.promoted-restroom-card[class*="promotion-color-"],
+.promotion-offer-card[class*="promotion-color-"],
+.promotion-preview-card[class*="promotion-color-"],
+.business-campaign-card[class*="promotion-color-"] {
+  background: linear-gradient(145deg, #fff 0%, var(--promotion-surface) 100%);
+  border-color: var(--promotion-accent);
+  color: var(--promotion-ink);
+  box-shadow: 0 7px 0 color-mix(in srgb, var(--promotion-shadow) 22%, transparent), var(--shadow-small);
+}
+
+.promotion-preview-card[class*="promotion-color-"] .promotion-preview-pin,
+.promotion-offer-card[class*="promotion-color-"] .promotion-offer-label {
+  background: var(--promotion-surface-strong);
+  color: var(--promotion-ink);
+}
+
+.promotion-preview-card[class*="promotion-color-"] .promotion-preview-topline > span,
+.promotion-preview-card[class*="promotion-color-"] .promotion-preview-offer {
+  background: var(--promotion-surface-strong);
+  color: var(--promotion-ink);
+}
+
+.promotion-preview-card[class*="promotion-color-"] .promotion-preview-place small,
+.promotion-preview-card[class*="promotion-color-"] .promotion-preview-place span,
+.promotion-preview-card[class*="promotion-color-"] .promotion-preview-offer span {
+  color: color-mix(in srgb, var(--promotion-ink) 72%, transparent);
+}
+
+.promoted-restroom-card[class*="promotion-color-"] .status-badge.promoted,
+.promoted-restroom-card[class*="promotion-color-"] .rating-chip.promoted-chip {
+  background: var(--promotion-ink);
+  color: white;
+}
+
+.map-marker.featured[class*="promotion-color-"] {
+  background: var(--promotion-surface-strong);
+  border-color: var(--promotion-accent);
+  color: var(--promotion-ink);
+}
+
+.map-marker.featured.selected[class*="promotion-color-"] {
+  background: var(--promotion-ink);
+  border-color: var(--promotion-accent);
+  color: white;
+}
+
+@media (max-width: 560px) {
+  .promotion-color-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

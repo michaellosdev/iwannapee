@@ -1,3 +1,5 @@
+import type { PromotionColorKey } from "@/lib/promotion-colors";
+
 export type Coordinates = {
   latitude: number;
   longitude: number;
@@ -23,6 +25,7 @@ export type RestroomPromotion = {
   endsAt: string;
   placementRank: number;
   priorityPlacement: boolean;
+  colorKey: PromotionColorKey;
 };
 
 export type Restroom = Coordinates & {

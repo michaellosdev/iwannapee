@@ -54,6 +54,7 @@ import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
 import { demoRestrooms, DEFAULT_LOCATION } from "@/lib/demo-restrooms";
 import { distanceInMeters, formatDistance } from "@/lib/distance";
 import { createPromotionViewId, recordPromotionActivity, type PromotionActivityType } from "@/lib/promotion-activity";
+import { normalizePromotionColorKey, promotionColorClassName, type PromotionColorKey } from "@/lib/promotion-colors";
 import { restroomPath } from "@/lib/public-links";
 import { SUPPORT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/client";
@@ -177,6 +178,7 @@ type NearbyAdvertisementRow = {
   distance_meters: number;
   placement_rank: number;
   priority_placement: boolean;
+  color_key: PromotionColorKey | null;
 };
 
 type GlobalRestroomRankingRow = Omit<NearbyRestroomRow, "distance_meters"> & {
@@ -260,6 +262,7 @@ function toSponsoredRestroom(row: NearbyAdvertisementRow): Restroom {
       endsAt: row.ends_at,
       placementRank: Number(row.placement_rank || 999),
       priorityPlacement: Boolean(row.priority_placement),
+      colorKey: normalizePromotionColorKey(row.color_key),
     },
   };
 }
@@ -294,6 +297,7 @@ function RestroomCard({ restroom, onSelect, onPromotionVisible }: { restroom: Re
   const cardClassName = [
     "restroom-card",
     promotion ? "promoted-restroom-card" : "",
+    promotion ? promotionColorClassName(promotion.colorKey) : "",
     coverPhotoUrl ? "" : "restroom-card-imageless",
   ].filter(Boolean).join(" ");
   const statusClassName = promotion ? "status-badge promoted" : restroom.openNow ? "status-badge open" : restroom.openNow === null ? "status-badge unknown" : "status-badge";
@@ -497,7 +501,7 @@ function RestroomDetail({
         </div>
 
         {restroom.promotion && (
-          <section className="promotion-offer-card">
+          <section className={`promotion-offer-card ${promotionColorClassName(restroom.promotion.colorKey)}`}>
             <div className="promotion-offer-label">{restroom.promotion.priorityPlacement ? <Gavel size={15} /> : <Megaphone size={15} />} {restroom.promotion.priorityPlacement ? "Priority sponsored offer" : "Sponsored local offer"}</div>
             <h3>{restroom.promotion.headline}</h3>
             <p>{restroom.promotion.offerText}</p>
@@ -666,6 +670,12 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
     return () => subscription.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(""), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
   useEffect(() => {
     const supabase = createClient();
