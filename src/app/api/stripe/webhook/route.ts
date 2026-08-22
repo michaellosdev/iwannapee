@@ -64,6 +64,52 @@ function paymentIntentId(value: string | Stripe.PaymentIntent | null) {
   return typeof value === "string" ? value : value?.id || null;
 }
 
+async function claimEvent(event: Stripe.Event) {
+  const admin = createAdminClient();
+  if (!admin) throw new Error("Supabase secret key is not configured");
+  const { error: insertError } = await admin.from("stripe_webhook_events").insert({
+    event_id: event.id,
+    event_type: event.type,
+    status: "processing",
+  });
+  if (!insertError) return { claimed: true, processed: false };
+  if (insertError.code !== "23505") throw insertError;
+
+  const { data: existing, error: selectError } = await admin
+    .from("stripe_webhook_events")
+    .select("status,attempt_count")
+    .eq("event_id", event.id)
+    .single();
+  if (selectError || !existing) throw selectError || new Error("Webhook event receipt is unavailable");
+  if (existing.status === "processed") return { claimed: false, processed: true };
+  if (existing.status === "processing") return { claimed: false, processed: false };
+
+  const { error: retryError } = await admin.from("stripe_webhook_events").update({
+    status: "processing",
+    attempt_count: Number(existing.attempt_count || 1) + 1,
+    last_error: null,
+    updated_at: new Date().toISOString(),
+  }).eq("event_id", event.id).eq("status", "failed");
+  if (retryError) throw retryError;
+  return { claimed: true, processed: false };
+}
+
+async function finishEvent(event: Stripe.Event, error?: unknown) {
+  const admin = createAdminClient();
+  if (!admin) return;
+  const now = new Date().toISOString();
+  await admin.from("stripe_webhook_events").update(error ? {
+    status: "failed",
+    last_error: error instanceof Error ? error.message.slice(0, 500) : "Unknown processing error",
+    updated_at: now,
+  } : {
+    status: "processed",
+    last_error: null,
+    processed_at: now,
+    updated_at: now,
+  }).eq("event_id", event.id);
+}
+
 async function markFullyRefunded(charge: Stripe.Charge) {
   if (!charge.refunded) return;
   const intentId = paymentIntentId(charge.payment_intent);
@@ -113,6 +159,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    const receipt = await claimEvent(event);
+    if (receipt.processed) return NextResponse.json({ received: true, duplicate: true });
+    if (!receipt.claimed) {
+      return NextResponse.json({ error: "Webhook event is already processing." }, { status: 409 });
+    }
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       await activateCampaign(event.data.object);
     } else if (event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed") {
@@ -122,8 +173,10 @@ export async function POST(request: Request) {
     } else if (event.type === "charge.dispute.created") {
       await markDisputed(event.data.object);
     }
+    await finishEvent(event);
     return NextResponse.json({ received: true });
   } catch (error) {
+    await finishEvent(event, error);
     console.error("Stripe webhook processing failed", {
       eventId: event.id,
       eventType: event.type,

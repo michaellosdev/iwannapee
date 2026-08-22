@@ -1,0 +1,16 @@
+import * as Sentry from "@sentry/nextjs";
+import { scrubSentryBreadcrumb, scrubSentryEvent, sentryTraceSampleRate } from "@/lib/monitoring/sentry-privacy";
+
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+
+Sentry.init({
+  dsn,
+  enabled: Boolean(dsn),
+  environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+  sendDefaultPii: false,
+  tracesSampleRate: sentryTraceSampleRate(),
+  beforeSend: scrubSentryEvent,
+  beforeBreadcrumb: scrubSentryBreadcrumb,
+});
+
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

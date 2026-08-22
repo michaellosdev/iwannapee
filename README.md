@@ -9,12 +9,12 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Without environment variables, the app discovers nearby public restrooms through OpenStreetMap; if that service is unavailable, it falls back to illustrative Los Angeles data.
+Open [http://localhost:3000](http://localhost:3000). Public Photon, Overpass, and OpenStreetMap tile endpoints are development fallbacks only. Production fails closed unless managed/self-hosted providers are configured or the seeded Supabase database can satisfy the restroom search.
 
 ## Connect Supabase
 
 1. Create a Supabase project.
-2. Run all files in `supabase/migrations/` in filename order, including `004_stripe_payment_lifecycle.sql`, or link the Supabase CLI and run `supabase db push`.
+2. Run every file in `supabase/migrations/` in filename order through `006_restroom_import_provenance.sql`, or link the correct Supabase project and run `supabase db push`.
 3. Optionally run `supabase/seed.sql`. The seed records are illustrative and must be verified before public launch.
 4. Copy `.env.example` to `.env.local` and provide:
 
@@ -47,11 +47,11 @@ NEXT_PUBLIC_GA4_ID=G-061DRKJ3ET
 
 Analytics uses Google advanced consent mode. The tag loads immediately with all storage and advertising consent types denied, allowing limited cookieless visit measurement. Accepting grants analytics storage, ad storage, ad user data, and ad personalization; declining keeps all four denied. Visitors can change the choice later from **Privacy settings** in the footer, and declining does not affect the map, sign-in, submissions, or checkout.
 
-Before launch, confirm the GA4 web data stream URL is `https://www.iwannapee.lol`, publish or approve the site's privacy/cookie language, and verify an accepted visit in GA4 Realtime or DebugView. Do not send email addresses, access codes, promo codes, review text, or other free-form form values as analytics parameters.
+The GA4 `iwannapee` web stream is active and uses measurement ID `G-061DRKJ3ET`. The app sends a pathname-only page location and strips query strings. Before launch, also enable GA4 URL-query-parameter redaction, approve the site's privacy/cookie language, and verify an accepted visit in Realtime and DebugView. Do not send search text, email addresses, access codes, promo codes, review text, precise user coordinates, or other free-form values as analytics parameters.
 
 ## Address autocomplete
 
-Homepage search, restroom submissions, and advertising addresses use [Photon](https://github.com/komoot/photon), an OpenStreetMap geocoder designed for search-as-you-type. The public demo service is suitable for development and modest traffic. For production volume, self-host Photon and set:
+Homepage search, restroom submissions, and advertising addresses use a server-side geocoder proxy. Public Photon is development-only. For production, provide `GEOAPIFY_API_KEY` or self-host/manage a Photon-compatible endpoint:
 
 ```dotenv
 GEOCODER_BASE_URL=https://your-photon-host.example
@@ -114,7 +114,7 @@ Each eligible local search has three sponsored slots. The $5 base price makes a 
 
 ## Restroom data sources
 
-The live nearby endpoint already uses [OpenStreetMap restroom data through Overpass](https://wiki.openstreetmap.org/wiki/Overpass_API) as the global discovery layer. OpenStreetMap data is available under the [Open Database License](https://www.openstreetmap.org/copyright), so production attribution and share-alike obligations must be preserved. The public Overpass instance is appropriate for development and modest use, not an unlimited production backend; cache responses and plan a hosted extract or managed provider as traffic grows.
+Development discovery can use [OpenStreetMap restroom data through Overpass](https://wiki.openstreetmap.org/wiki/Overpass_API). Production does not fall back to the public Overpass or OpenStreetMap tile services. It uses seeded Supabase records plus explicitly configured managed/self-hosted providers. OpenStreetMap data remains under the [Open Database License](https://www.openstreetmap.org/copyright), so attribution and share-alike obligations must be preserved.
 
 Useful official regional supplements include:
 
@@ -128,7 +128,7 @@ Treat all imported data as a starting point rather than a real-time availability
 
 - Public visitors can read only `published` restrooms and reviews.
 - Signed-in contributors create `pending` restroom submissions.
-- Moderators are profiles with `is_moderator = true`; set this only from the Supabase dashboard or a service-role process.
+- Owners use `/admin` to approve/reject listings and corrections, resolve reports, create sample ads, and assign `user`, `moderator`, or `owner` roles. Access requires both the server-side owner email allowlist and an authenticated account.
 - Reviews update aggregate overall and cleanliness scores automatically.
 - Suggested updates and reports have separate queues in the schema.
 - Sponsored restrooms are always disclosed and are returned only when the visitor is inside the campaign radius and the campaign is active and unexpired. At most three sponsored campaigns are returned per local search; priority bids rank ahead of standard sponsored listings and distance breaks ties.
@@ -141,4 +141,8 @@ Access codes and hours can change quickly. Before launch, add a visible reportin
 ```bash
 npm run check
 npm run build
+npm run verify:production-env
+npm run smoke:production
 ```
+
+Use [docs/PRODUCTION_RUNBOOK.md](docs/PRODUCTION_RUNBOOK.md) for deployment order, hosted verification, provider replacement, data seeding, monitoring, and restore-test evidence.

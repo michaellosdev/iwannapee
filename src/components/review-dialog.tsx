@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Sparkles, Star, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/client";
+import { CaptchaWidget } from "@/components/captcha-widget";
 import type { Restroom } from "@/types/restroom";
 
 type ReviewDialogProps = {
@@ -40,6 +40,7 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success">("idle");
   const [error, setError] = useState("");
+  const [captchaReady, setCaptchaReady] = useState(false);
 
   if (!restroom) return null;
   const selectedRestroom = restroom;
@@ -52,28 +53,27 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
       return;
     }
 
-    const supabase = createClient();
-    if (!supabase || selectedRestroom.source === "demo") {
+    if (selectedRestroom.source === "demo" || selectedRestroom.source === "openstreetmap") {
       setError("Connect Supabase and publish this restroom before accepting live ratings.");
       return;
     }
 
     setStatus("submitting");
     setError("");
-    const { error: reviewError } = await supabase.from("reviews").upsert(
-      {
-        restroom_id: selectedRestroom.id,
-        user_id: user.id,
-        overall_rating: overallRating,
-        cleanliness_rating: cleanlinessRating,
-        note: note || null,
-      },
-      { onConflict: "restroom_id,user_id" },
-    );
-
-    if (reviewError) {
+    const response = await fetch("/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        restroomId: selectedRestroom.id,
+        overallRating,
+        cleanlinessRating,
+        note,
+      }),
+    });
+    const result = (await response.json()) as { error?: string; submitted?: boolean };
+    if (!response.ok || !result.submitted) {
       setStatus("idle");
-      setError(reviewError.message);
+      setError(result.error || "We couldn’t save your rating.");
       return;
     }
 
@@ -103,8 +103,9 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
                 <span>Anything people should know? <small>optional</small></span>
                 <textarea maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="Soap was stocked and the accessible stall was open." rows={3} value={note} />
               </label>
+              <CaptchaWidget onVerified={setCaptchaReady} />
               {error && <p className="form-error" role="alert">{error}</p>}
-              <button className="button button-primary button-full" disabled={status === "submitting"}>
+              <button className="button button-primary button-full" disabled={status === "submitting" || !captchaReady}>
                 {status === "submitting" ? "Posting…" : "Post rating"}
               </button>
             </form>

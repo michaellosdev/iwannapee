@@ -51,8 +51,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Valid latitude and longitude are required." }, { status: 400 });
   }
 
+  const providerUrl = process.env.RESTROOM_DATA_API_URL
+    || (process.env.NODE_ENV === "development" ? "https://overpass-api.de/api/interpreter" : "");
+  if (!providerUrl) return NextResponse.json([]);
+
   const query = `[out:json][timeout:18];nwr["amenity"="toilets"](around:${Math.round(radius)},${latitude},${longitude});out center tags;`;
-  const endpoint = new URL("https://overpass-api.de/api/interpreter");
+  const endpoint = new URL(providerUrl);
   endpoint.searchParams.set("data", query);
 
   try {

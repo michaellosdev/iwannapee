@@ -7,3 +7,5 @@ out
 .env.*.local
 *.tsbuildinfo
 npm-debug.log*
+.data/
+supabase/.temp/

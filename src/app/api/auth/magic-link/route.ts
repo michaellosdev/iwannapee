@@ -15,13 +15,22 @@ export async function POST(request: Request) {
     return Response.json({ error: "Enter a valid email address." }, { status: 400 });
   }
 
-  const limit = await consumeRateLimit(request, {
-    bucket: "magic-link",
+  const addressLimit = await consumeRateLimit(request, {
+    bucket: "magic-link-address",
+    limit: 20,
+    windowSeconds: 15 * 60,
+  });
+  const addressLimited = rateLimitResponse(addressLimit);
+  if (addressLimited) return addressLimited;
+
+  const emailLimit = await consumeRateLimit(request, {
+    bucket: "magic-link-email",
     limit: 5,
     windowSeconds: 15 * 60,
     identifier: email,
+    includeAddress: false,
   });
-  const limited = rateLimitResponse(limit);
+  const limited = rateLimitResponse(emailLimit);
   if (limited) return limited;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -48,4 +57,3 @@ export async function POST(request: Request) {
 
   return Response.json({ sent: true });
 }
-

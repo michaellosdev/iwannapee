@@ -8,9 +8,16 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck"
+    "check": "npm run lint && npm run typecheck",
+    "verify:production-env": "node scripts/verify-production-env.mjs",
+    "smoke:production": "node scripts/smoke-production.mjs",
+    "seed:restrooms": "node --env-file=.env.local scripts/import-restrooms.mjs",
+    "backup:storage": "node --env-file=.env.local scripts/backup-storage.mjs",
+    "restore:test:storage": "node --env-file=.env.local scripts/restore-storage-test.mjs",
+    "restore:test:database": "bash scripts/backup-restore-test.sh"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.70.0",
     "@supabase/ssr": "0.12.4",
     "@supabase/supabase-js": "2.112.3",
     "leaflet": "1.9.4",

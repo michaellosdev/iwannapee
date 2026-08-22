@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getAdvertisingOffer } from "@/lib/advertising";
+import { captchaRequiredResponse, hasCaptchaSession } from "@/lib/security/captcha";
+import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -43,11 +45,22 @@ function urlField(value: unknown, label: string) {
 }
 
 export async function POST(request: Request) {
+  if (!hasCaptchaSession(request)) return captchaRequiredResponse();
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
 
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) return NextResponse.json({ error: "Sign in before creating an advertisement." }, { status: 401 });
+
+  const limit = await consumeRateLimit(request, {
+    bucket: "advertising-checkout",
+    limit: 10,
+    windowSeconds: 60 * 60,
+    identifier: authData.user.id,
+    includeAddress: false,
+  });
+  const limited = rateLimitResponse(limit);
+  if (limited) return limited;
 
   const stripeSecret = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecret) return NextResponse.json({ error: "Stripe Checkout is not configured yet." }, { status: 503 });
@@ -133,10 +146,11 @@ export async function POST(request: Request) {
       const session = await stripe.checkout.sessions.create(
         {
           mode: "payment",
+          integration_identifier: process.env.STRIPE_INTEGRATION_IDENTIFIER || "iwannapee_qnrvkzpt",
           client_reference_id: createdCampaign.id,
           customer_email: authData.user.email,
-          success_url: `${siteUrl}/advertise/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${siteUrl}/?advertise=1&checkout=cancelled`,
+          success_url: `${siteUrl}/business/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${siteUrl}/?business=1&checkout=cancelled`,
           line_items: lineItems,
           metadata: {
             campaign_id: createdCampaign.id,

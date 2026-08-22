@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
@@ -12,7 +13,7 @@ function urlOrigin(value?: string) {
   }
 }
 
-const tileOrigin = urlOrigin(process.env.NEXT_PUBLIC_MAP_TILE_URL);
+const tileOrigin = urlOrigin(process.env.NEXT_PUBLIC_MAP_TILE_URL || (isDevelopment ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" : undefined));
 const supabaseOrigin = urlOrigin(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const extraImageSources = [tileOrigin, supabaseOrigin].filter((value): value is string => Boolean(value));
 const extraConnectSources = [supabaseOrigin].filter((value): value is string => Boolean(value));
@@ -57,4 +58,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      silent: !process.env.CI,
+      disableLogger: true,
+    })
+  : nextConfig;

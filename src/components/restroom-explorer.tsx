@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { AdvertiseDialog } from "@/components/advertise-dialog";
 import { AuthDialog } from "@/components/auth-dialog";
+import { CaptchaWidget } from "@/components/captcha-widget";
 import { openPrivacySettings } from "@/components/google-analytics";
 import { ReviewDialog } from "@/components/review-dialog";
 import { SubmitRestroomDialog } from "@/components/submit-restroom-dialog";
@@ -78,6 +79,8 @@ type NearbyRestroomRow = {
   last_verified_at: string;
   latitude: number;
   longitude: number;
+  data_source: "community" | "openstreetmap" | "refuge";
+  source_url: string | null;
 };
 
 type NearbyAdvertisementRow = {
@@ -137,13 +140,14 @@ function toRestroom(row: NearbyRestroomRow): Restroom {
     lastVerifiedAt: row.last_verified_at,
     latitude: row.latitude,
     longitude: row.longitude,
-    source: "community",
+    source: row.data_source || "community",
+    sourceUrl: row.source_url,
   };
 }
 
 function toSponsoredRestroom(row: NearbyAdvertisementRow): Restroom {
   return {
-    id: `sponsored-${row.campaign_id}`,
+    id: `promotion-${row.campaign_id}`,
     name: row.restroom_name,
     address: row.address,
     description: row.offer_text,
@@ -161,7 +165,7 @@ function toSponsoredRestroom(row: NearbyAdvertisementRow): Restroom {
     lastVerifiedAt: row.ends_at,
     latitude: row.latitude,
     longitude: row.longitude,
-    source: "sponsored",
+    source: "promotion",
     promotion: {
       campaignId: row.campaign_id,
       businessName: row.business_name,
@@ -204,7 +208,7 @@ function RestroomCard({ restroom, onSelect }: { restroom: Restroom; onSelect: ()
   const promotion = restroom.promotion;
 
   return (
-    <article className={promotion ? "restroom-card sponsored-restroom-card" : "restroom-card"} onClick={onSelect}>
+    <article className={promotion ? "restroom-card promoted-restroom-card" : "restroom-card"} onClick={onSelect}>
       <button className="card-click-target" aria-label={`View ${restroom.name}`} onClick={onSelect} />
       <div className="restroom-photo">
         {restroom.coverPhotoUrl ? (
@@ -213,7 +217,7 @@ function RestroomCard({ restroom, onSelect }: { restroom: Restroom; onSelect: ()
         ) : (
           <div className="photo-placeholder"><Toilet size={30} /></div>
         )}
-        <span className={promotion ? "status-badge sponsored" : restroom.openNow ? "status-badge open" : restroom.openNow === null ? "status-badge unknown" : "status-badge"}>
+        <span className={promotion ? "status-badge promoted" : restroom.openNow ? "status-badge open" : restroom.openNow === null ? "status-badge unknown" : "status-badge"}>
           {promotion ? "Sponsored" : restroom.openNow === null ? "Hours?" : restroom.openNow ? "Open" : "Closed"}
         </span>
       </div>
@@ -224,7 +228,7 @@ function RestroomCard({ restroom, onSelect }: { restroom: Restroom; onSelect: ()
             <p>{formatDistance(restroom.distanceMeters)} · {restroom.address}</p>
           </div>
           {promotion ? (
-            <span className="rating-chip sponsored-chip">{promotion.priorityPlacement ? <Gavel size={14} /> : <Megaphone size={14} />} {promotion.priorityPlacement ? "Priority" : "Offer"}</span>
+            <span className="rating-chip promoted-chip">{promotion.priorityPlacement ? <Gavel size={14} /> : <Megaphone size={14} />} {promotion.priorityPlacement ? "Priority" : "Offer"}</span>
           ) : restroom.reviewCount > 0 ? (
             <span className="rating-chip"><Star size={14} fill="currentColor" /> {restroom.rating.toFixed(1)}</span>
           ) : (
@@ -232,7 +236,7 @@ function RestroomCard({ restroom, onSelect }: { restroom: Restroom; onSelect: ()
           )}
         </div>
         {promotion ? (
-          <div className="sponsored-card-offer"><strong>{promotion.headline}</strong><span>{promotion.offerText}</span></div>
+          <div className="promotion-card-offer"><strong>{promotion.headline}</strong><span>{promotion.offerText}</span></div>
         ) : (
           <div className="clean-score">
             <Droplets size={15} />
@@ -329,11 +333,11 @@ function RestroomDetail({
       <div className="detail-content">
         <div className="detail-title-row">
           <div>
-            <span className={restroom.promotion ? "sponsored-text" : restroom.openNow ? "open-text" : restroom.openNow === null ? "unknown-text" : "closed-text"}>{restroom.promotion ? `Sponsored by ${restroom.promotion.businessName}` : restroom.openNow === null ? "Hours not confirmed" : restroom.openNow ? "Open now" : "Closed"}</span>
+            <span className={restroom.promotion ? "promoted-text" : restroom.openNow ? "open-text" : restroom.openNow === null ? "unknown-text" : "closed-text"}>{restroom.promotion ? `Sponsored by ${restroom.promotion.businessName}` : restroom.openNow === null ? "Hours not confirmed" : restroom.openNow ? "Open now" : "Closed"}</span>
             <h2>{restroom.name}</h2>
             <p>{formatDistance(restroom.distanceMeters)} away · {restroom.address}</p>
           </div>
-          <div className={restroom.promotion ? "detail-score detail-score-sponsored" : restroom.reviewCount ? "detail-score" : "detail-score detail-score-new"}>
+          <div className={restroom.promotion ? "detail-score detail-score-featured" : restroom.reviewCount ? "detail-score" : "detail-score detail-score-new"}>
             <strong>{restroom.promotion ? "AD" : restroom.reviewCount ? restroom.rating.toFixed(1) : "New"}</strong>
             <span>{restroom.promotion ? "Offer" : restroom.reviewCount ? <><Star size={13} fill="currentColor" /> {restroom.reviewCount}</> : "Unrated"}</span>
           </div>
@@ -353,12 +357,12 @@ function RestroomDetail({
         </div>
 
         {restroom.promotion && (
-          <section className="sponsored-offer-card">
-            <div className="sponsored-offer-label">{restroom.promotion.priorityPlacement ? <Gavel size={15} /> : <Megaphone size={15} />} {restroom.promotion.priorityPlacement ? "Priority sponsored offer" : "Sponsored local offer"}</div>
+          <section className="promotion-offer-card">
+            <div className="promotion-offer-label">{restroom.promotion.priorityPlacement ? <Gavel size={15} /> : <Megaphone size={15} />} {restroom.promotion.priorityPlacement ? "Priority sponsored offer" : "Sponsored local offer"}</div>
             <h3>{restroom.promotion.headline}</h3>
             <p>{restroom.promotion.offerText}</p>
             {(restroom.promotion.promoCode || restroom.promotion.qrTargetUrl) && (
-              <div className="sponsored-redemption">
+              <div className="promotion-redemption">
                 {restroom.promotion.promoCode && (
                   <button onClick={copyPromoCode} type="button">
                     <span><small>Promo code</small><strong>{restroom.promotion.promoCode}</strong></span>
@@ -372,12 +376,12 @@ function RestroomDetail({
                 )}
               </div>
             )}
-            <small className="sponsored-offer-expiry">Offer ends {new Date(restroom.promotion.endsAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</small>
+            <small className="promotion-offer-expiry">Offer ends {new Date(restroom.promotion.endsAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</small>
           </section>
         )}
 
         {restroom.promotion ? (
-          <div className="access-code-card no-code sponsored-access-card">
+          <div className="access-code-card no-code promotion-access-card">
             <span className="access-code-icon"><Toilet size={20} /></span>
             <span><small>Restroom access</small><strong>Available to visitors</strong></span>
           </div>
@@ -416,8 +420,10 @@ function RestroomDetail({
 
         <p className="verification-line">
           <ShieldCheck size={15} />
-          {restroom.source === "sponsored"
+          {restroom.source === "promotion"
             ? `Paid placement · availability and offer supplied by ${restroom.promotion?.businessName}`
+            : restroom.source === "refuge"
+            ? "Supporting listing from REFUGE Restrooms · details need community re-verification"
             : restroom.source === "openstreetmap"
             ? "Mapped by OpenStreetMap contributors · details need community verification"
             : `Community verified ${new Date(restroom.lastVerifiedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
@@ -449,6 +455,8 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
   const [notice, setNotice] = useState("");
   const [loadingData, setLoadingData] = useState(false);
   const [loadingRankings, setLoadingRankings] = useState(true);
+  const [searchCaptchaRequired, setSearchCaptchaRequired] = useState(false);
+  const [searchRetryNonce, setSearchRetryNonce] = useState(0);
 
   const refreshRestrooms = useCallback(async (location: Coordinates) => {
     const supabase = createClient();
@@ -461,22 +469,22 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
           radius_m: 8000,
         })
       : Promise.resolve(null);
-    const advertisingRequest = supabase
-      ? supabase.rpc("nearby_advertisements", {
+    const promotionRequest = supabase
+      ? supabase.rpc("nearby_business_promotions", {
           user_lat: location.latitude,
           user_lng: location.longitude,
         })
       : Promise.resolve(null);
-    const [mappedOutcome, communityOutcome, advertisingOutcome] = await Promise.allSettled([mappedRequest, communityRequest, advertisingRequest]);
+    const [mappedOutcome, communityOutcome, promotionOutcome] = await Promise.allSettled([mappedRequest, communityRequest, promotionRequest]);
 
     const mapped = mappedOutcome.status === "fulfilled" ? mappedOutcome.value : [];
     const communityResponse = communityOutcome.status === "fulfilled" ? communityOutcome.value : null;
     const community = communityResponse && !communityResponse.error
       ? ((communityResponse.data || []) as NearbyRestroomRow[]).map(toRestroom)
       : [];
-    const advertisingResponse = advertisingOutcome.status === "fulfilled" ? advertisingOutcome.value : null;
-    const sponsored = advertisingResponse && !advertisingResponse.error
-      ? ((advertisingResponse.data || []) as NearbyAdvertisementRow[]).map(toSponsoredRestroom)
+    const promotionResponse = promotionOutcome.status === "fulfilled" ? promotionOutcome.value : null;
+    const sponsored = promotionResponse && !promotionResponse.error
+      ? ((promotionResponse.data || []) as NearbyAdvertisementRow[]).map(toSponsoredRestroom)
       : [];
     const unclaimedMapped = mapped.filter(
       (mappedRestroom) => ![...sponsored, ...community].some((listedRestroom) => distanceInMeters(mappedRestroom, listedRestroom) < 45),
@@ -527,7 +535,11 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("submit") === "1") window.setTimeout(() => setSubmitOpen(true), 0);
-    if (params.get("advertise") === "1") window.setTimeout(() => setAdvertiseOpen(true), 0);
+    if (params.get("business") === "1" || params.get("advertise") === "1") window.setTimeout(() => setAdvertiseOpen(true), 0);
+    if (params.get("admin") === "1") {
+      window.setTimeout(() => setAuthReturnTo("/admin"), 0);
+      window.setTimeout(() => setAuthOpen(true), 0);
+    }
     if (params.get("checkout") === "cancelled") window.setTimeout(() => setNotice("Checkout cancelled · your ad was not activated"), 0);
 
     if (navigator.permissions?.query) {
@@ -553,7 +565,10 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
           q: search,
         });
         const response = await fetch(`/api/geocode?${params}`, { signal: controller.signal });
-        const results = (await response.json()) as LocationSearchResult[];
+        const results = (await response.json()) as LocationSearchResult[] | { code?: string };
+        if (!response.ok && !Array.isArray(results) && results.code === "captcha_required") {
+          setSearchCaptchaRequired(true);
+        }
         setSearchResults(response.ok && Array.isArray(results) ? results : []);
       } catch {
         if (!controller.signal.aborted) setSearchResults([]);
@@ -566,7 +581,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [center, search]);
+  }, [center, search, searchRetryNonce]);
 
   function locateUser() {
     if (!navigator.geolocation) {
@@ -617,7 +632,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
 
   function beginAdvertising() {
     setMobileNavOpen(false);
-    setAuthReturnTo("/?advertise=1");
+    setAuthReturnTo("/?business=1");
     setAdvertiseOpen(true);
   }
 
@@ -655,7 +670,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
           <a href="#world-rankings" onClick={() => setMobileNavOpen(false)}>World rankings</a>
           <a href="#how-it-works" onClick={() => setMobileNavOpen(false)}>How it works</a>
           <button className="nav-link" onClick={beginSubmission}>Add a restroom</button>
-          <button className="nav-link nav-advertise" onClick={beginAdvertising}>Advertise {formatPrice(adOffer.priceCents)}</button>
+          <button className="nav-link nav-business" onClick={beginAdvertising}>Promote {formatPrice(adOffer.priceCents)}</button>
         </nav>
         <div className="header-actions">
           <button className="button button-header" onClick={() => setAuthOpen(true)}>
@@ -700,6 +715,15 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
                 <LocateFixed size={18} /> <span>{locating ? "Locating…" : "Use my location"}</span>
               </button>
             </div>
+            {searchCaptchaRequired && (
+              <div className="geocode-captcha hero-geocode-captcha">
+                <CaptchaWidget onVerified={(verified) => {
+                  if (!verified) return;
+                  setSearchCaptchaRequired(false);
+                  setSearchRetryNonce((current) => current + 1);
+                }} />
+              </div>
+            )}
             {(searchResults.length > 0 || searching) && (
               <div className="search-results">
                 {searching && <p>Finding places…</p>}
@@ -747,7 +771,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
             <div className="map-stage">
               <RestroomMap center={center} restrooms={visibleRestrooms} selectedId={selected?.id || null} onSelect={setSelected} />
               <button className="map-locate-control" onClick={locateUser} aria-label="Use current location"><Crosshair size={20} /></button>
-              <div className="map-legend"><span className="legend-user" /> You <span className="legend-restroom" /> Restroom <span className="legend-sponsored" /> Sponsored</div>
+              <div className="map-legend"><span className="legend-user" /> You <span className="legend-restroom" /> Restroom <span className="legend-featured" /> Sponsored</div>
             </div>
           </div>
         ) : (
@@ -800,18 +824,18 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
         </div>
       </section>
 
-      <section className="advertising-section" id="advertise">
-        <div className="advertising-copy">
+      <section className="business-promotion-section" id="business-promotion">
+        <div className="business-promotion-copy">
           <p className="eyebrow"><Megaphone size={14} /> For local businesses</p>
           <h2>A useful restroom stop can become a new customer.</h2>
           <p>Start sponsored for {formatPrice(adOffer.priceCents)}, then add an optional one-time placement bid for one of {adOffer.sponsoredSlotCount} nearby sponsored slots. Welcome visitors with a discount, promo code, or QR link.</p>
-          <div className="advertising-price"><strong>{formatPrice(adOffer.priceCents)}</strong><span>{adOffer.durationDays} days<br />one-time payment</span></div>
+          <div className="business-promotion-price"><strong>{formatPrice(adOffer.priceCents)}</strong><span>{adOffer.durationDays} days<br />one-time payment</span></div>
           <button className="button button-primary" onClick={beginAdvertising}><BadgeDollarSign size={18} /> Build your local ad</button>
         </div>
-        <div className="advertising-demo" aria-label="Sponsored restroom example">
-          <div className="advertising-demo-card">
-            <div className="advertising-demo-label"><Gavel size={14} /> Priority sponsored · nearby</div>
-            <span className="advertising-demo-business">JUNIPER COFFEE</span>
+        <div className="business-promotion-demo" aria-label="Sponsored restroom example">
+          <div className="business-promotion-demo-card">
+            <div className="business-promotion-demo-label"><Gavel size={14} /> Priority sponsored · nearby</div>
+            <span className="business-promotion-demo-business">JUNIPER COFFEE</span>
             <h3>Come for relief. Stay for 10% off.</h3>
             <p>Our restroom is available during business hours. Show this offer for 10% off any drink.</p>
             <div><span><small>Promo code</small><strong>RELIEF10</strong></span><QRCodeSVG bgColor="#ffffff" fgColor="#17231d" level="M" marginSize={1} size={82} value="https://www.iwannapee.lol/?offer=RELIEF10" /></div>
@@ -829,7 +853,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
       <footer>
         <a className="brand brand-footer" href="#top" aria-label="IWANNAPEE home"><span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-mark.png" width={512} /></span><span>IWANNAPEE</span></a>
         <p>Everyone deserves dignified access to a restroom.</p>
-        <div><button onClick={() => setAuthOpen(true)}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Advertise</button>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/about" rel="noreferrer" target="_blank">Data source</a></div>
+        <div><button onClick={() => setAuthOpen(true)}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></div>
       </footer>
 
       {selected && (

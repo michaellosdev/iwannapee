@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     limit: 10,
     windowSeconds: 60 * 60,
     identifier: authData.user.id,
+    includeAddress: false,
   });
   const limited = rateLimitResponse(limit);
   if (limited) return limited;
@@ -96,4 +97,3 @@ export async function POST(request: Request) {
     return Response.json({ error: "We couldn’t save the restroom. Please try again." }, { status: 500 });
   }
 }
-

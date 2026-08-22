@@ -8,6 +8,7 @@ type RateLimitOptions = {
   limit: number;
   windowSeconds: number;
   identifier?: string;
+  includeAddress?: boolean;
 };
 
 type RateLimitRow = {
@@ -41,7 +42,10 @@ export async function consumeRateLimit(request: Request, options: RateLimitOptio
   const admin = createAdminClient();
   if (!secret || !admin) return null;
 
-  const rawIdentifier = [options.bucket, requestAddress(request), options.identifier || ""].join(":");
+  const parts = [options.bucket];
+  if (options.includeAddress !== false) parts.push(requestAddress(request));
+  if (options.identifier) parts.push(options.identifier);
+  const rawIdentifier = parts.join(":");
   const keyHash = createHash("sha256").update(`${secret}:${rawIdentifier}`).digest("hex");
   const { data, error } = await admin.rpc("consume_rate_limit", {
     p_key_hash: keyHash,
@@ -85,4 +89,3 @@ export function rateLimitResponse(result: RateLimitResult | null) {
     },
   );
 }
-

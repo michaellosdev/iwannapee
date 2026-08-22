@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, LogIn, Mail, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { CaptchaWidget } from "@/components/captcha-widget";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 type AuthDialogProps = {
@@ -17,6 +18,7 @@ export function AuthDialog({ open, user, returnTo = "/?submit=1", onClose, onSig
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
   const [error, setError] = useState("");
+  const [captchaReady, setCaptchaReady] = useState(false);
 
   if (!open) return null;
 
@@ -30,23 +32,16 @@ export function AuthDialog({ open, user, returnTo = "/?submit=1", onClose, onSig
     event.preventDefault();
     setError("");
 
-    const supabase = createClient();
-    if (!supabase) {
-      setError("Add your Supabase URL and anon key to enable magic-link sign in.");
-      return;
-    }
-
     setStatus("sending");
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`,
-      },
+    const response = await fetch("/api/auth/magic-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, returnTo }),
     });
-
-    if (signInError) {
+    const result = (await response.json()) as { error?: string; sent?: boolean };
+    if (!response.ok || !result.sent) {
       setStatus("idle");
-      setError(signInError.message);
+      setError(result.error || "We couldn’t send the sign-in link.");
       return;
     }
 
@@ -117,7 +112,8 @@ export function AuthDialog({ open, user, returnTo = "/?submit=1", onClose, onSig
               {!isSupabaseConfigured && (
                 <p className="setup-note">Demo mode is active. Add Supabase credentials to send real links.</p>
               )}
-              <button className="button button-primary button-full" disabled={status === "sending"}>
+              <CaptchaWidget onVerified={setCaptchaReady} />
+              <button className="button button-primary button-full" disabled={status === "sending" || !captchaReady}>
                 {status === "sending" ? "Sending…" : "Email me a magic link"}
               </button>
             </form>

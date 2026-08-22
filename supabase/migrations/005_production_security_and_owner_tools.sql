@@ -78,7 +78,7 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values
   ('restroom-photos', 'restroom-photos', true, 8388608, array['image/jpeg', 'image/png', 'image/webp']),
   ('profile-avatars', 'profile-avatars', true, 2097152, array['image/jpeg', 'image/png', 'image/webp']),
-  ('ad-creatives', 'ad-creatives', true, 8388608, array['image/jpeg', 'image/png', 'image/webp'])
+  ('business-creatives', 'business-creatives', true, 8388608, array['image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do update set
   public = excluded.public,
   file_size_limit = excluded.file_size_limit,
@@ -90,7 +90,7 @@ drop policy if exists "Users can manage their own restroom photos" on storage.ob
 
 create policy "IWANNAPEE public media is readable"
 on storage.objects for select
-using (bucket_id in ('restroom-photos', 'profile-avatars', 'ad-creatives'));
+using (bucket_id in ('restroom-photos', 'profile-avatars', 'business-creatives'));
 
 -- Atomic, database-backed request limits survive serverless instance changes.
 create table if not exists public.request_rate_limits (
@@ -272,3 +272,39 @@ $$;
 grant execute on function public.nearby_advertisements(double precision, double precision)
 to anon, authenticated;
 
+-- Neutral public RPC path avoids false positives from content blockers while
+-- retaining the original function for older deployed clients during rollout.
+create or replace function public.nearby_business_promotions(
+  user_lat double precision,
+  user_lng double precision
+)
+returns table (
+  campaign_id uuid,
+  business_name text,
+  restroom_name text,
+  address text,
+  latitude double precision,
+  longitude double precision,
+  hours text,
+  directions text,
+  headline text,
+  offer_text text,
+  promo_code text,
+  qr_target_url text,
+  destination_url text,
+  ends_at timestamptz,
+  distance_meters double precision,
+  placement_rank bigint,
+  priority_placement boolean
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select *
+  from public.nearby_advertisements(user_lat, user_lng);
+$$;
+
+grant execute on function public.nearby_business_promotions(double precision, double precision)
+to anon, authenticated;

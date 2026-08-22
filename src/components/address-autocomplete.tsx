@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { LoaderCircle, MapPin } from "lucide-react";
+import { CaptchaWidget } from "@/components/captcha-widget";
 import type { Coordinates, LocationSearchResult } from "@/types/restroom";
 
 type AddressAutocompleteProps = {
@@ -29,6 +30,8 @@ export function AddressAutocomplete({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     if (suppressNextSearch.current) {
@@ -50,7 +53,10 @@ export function AddressAutocomplete({
 
       try {
         const response = await fetch(`/api/geocode?${params}`, { signal: controller.signal });
-        const data = (await response.json()) as LocationSearchResult[] | { error: string };
+        const data = (await response.json()) as LocationSearchResult[] | { error?: string; code?: string };
+        if (!response.ok && !Array.isArray(data) && data.code === "captcha_required") {
+          setCaptchaRequired(true);
+        }
         const nextResults = response.ok && Array.isArray(data) ? data : [];
         setResults(nextResults);
         setOpen(nextResults.length > 0);
@@ -69,7 +75,7 @@ export function AddressAutocomplete({
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [biasCoordinates, value]);
+  }, [biasCoordinates, retryNonce, value]);
 
   function chooseResult(result: LocationSearchResult) {
     suppressNextSearch.current = true;
@@ -130,6 +136,15 @@ export function AddressAutocomplete({
         />
         {loading && <LoaderCircle aria-label="Searching addresses" className="address-autocomplete-loader" size={16} />}
       </div>
+      {captchaRequired && (
+        <div className="geocode-captcha">
+          <CaptchaWidget onVerified={(verified) => {
+            if (!verified) return;
+            setCaptchaRequired(false);
+            setRetryNonce((current) => current + 1);
+          }} />
+        </div>
+      )}
       {open && (
         <div className="address-autocomplete-results" id={listboxId} role="listbox">
           {results.map((result, index) => (

@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 const CAPTCHA_COOKIE = "iwp_human";
 const CAPTCHA_SESSION_SECONDS = 30 * 60;
+const CAPTCHA_ACTION = "protected_action";
 
 type TurnstileResponse = {
   success?: boolean;
@@ -95,13 +96,15 @@ export async function verifyCaptchaToken(token: string, request: Request) {
     });
     const result = (await response.json()) as TurnstileResponse;
     const expectedHostname = configuredHostname();
+    const actionMatches = result.action === CAPTCHA_ACTION;
     const hostnameMatches = !expectedHostname
       || expectedHostname === "localhost"
       || result.hostname === expectedHostname
       || result.hostname === expectedHostname.replace(/^www\./, "");
-    if (!response.ok || !result.success || !hostnameMatches) {
+    if (!response.ok || !result.success || !hostnameMatches || !actionMatches) {
       console.warn("Turnstile verification rejected", {
         hostnameMatches,
+        actionMatches,
         errors: result["error-codes"] || [],
       });
       return { success: false, error: "Human verification failed. Please try again." };
@@ -118,4 +121,3 @@ export function captchaRequiredResponse() {
     { status: 403 },
   );
 }
-

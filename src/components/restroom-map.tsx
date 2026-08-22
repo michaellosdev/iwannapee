@@ -26,10 +26,10 @@ function MapMotion({ center, selected }: { center: Coordinates; selected: Restro
 }
 
 function restroomIcon(restroom: Restroom, selected: boolean) {
-  const sponsored = Boolean(restroom.promotion);
+  const promoted = Boolean(restroom.promotion);
   return L.divIcon({
     className: "map-marker-shell",
-    html: `<div class="map-marker${sponsored ? " sponsored" : ""}${selected ? " selected" : ""}"><span>${sponsored ? "AD" : restroom.reviewCount ? restroom.rating.toFixed(1) : "WC"}</span><i></i></div>`,
+    html: `<div class="map-marker${promoted ? " featured" : ""}${selected ? " selected" : ""}"><span>${promoted ? "SP" : restroom.reviewCount ? restroom.rating.toFixed(1) : "WC"}</span><i></i></div>`,
     iconAnchor: [25, 44],
     iconSize: [50, 50],
     popupAnchor: [0, -44],
@@ -48,6 +48,10 @@ export default function RestroomMap({ center, restrooms, selectedId, onSelect }:
     () => restrooms.find((restroom) => restroom.id === selectedId),
     [restrooms, selectedId],
   );
+  const tileUrl = process.env.NEXT_PUBLIC_MAP_TILE_URL
+    || (process.env.NODE_ENV === "development" ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" : "");
+  const tileAttribution = process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION
+    || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
   return (
     <MapContainer
@@ -57,10 +61,7 @@ export default function RestroomMap({ center, restrooms, selectedId, onSelect }:
       zoom={14}
       zoomControl={false}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      {tileUrl && <TileLayer attribution={tileAttribution} url={tileUrl} />}
       <Circle
         center={[center.latitude, center.longitude]}
         pathOptions={{ color: "#2f63ff", fillColor: "#2f63ff", fillOpacity: 0.08, weight: 1 }}

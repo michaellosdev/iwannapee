@@ -20,10 +20,15 @@ export function CaptchaWidget({ onVerified }: { onVerified: (verified: boolean) 
   const reactId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
-  const [scriptReady, setScriptReady] = useState(false);
+  const onVerifiedRef = useRef(onVerified);
+  const [scriptReady, setScriptReady] = useState(() => typeof window !== "undefined" && Boolean(window.turnstile));
   const [status, setStatus] = useState<"checking" | "challenge" | "verifying" | "verified" | "error">("checking");
   const [message, setMessage] = useState("");
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  useEffect(() => {
+    onVerifiedRef.current = onVerified;
+  }, [onVerified]);
 
   const exchangeToken = useCallback(async (token: string) => {
     setStatus("verifying");
@@ -37,14 +42,14 @@ export function CaptchaWidget({ onVerified }: { onVerified: (verified: boolean) 
       if (!response.ok || !result.verified) throw new Error(result.error || "Verification failed.");
       setStatus("verified");
       setMessage("");
-      onVerified(true);
+      onVerifiedRef.current(true);
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Verification failed.");
-      onVerified(false);
+      onVerifiedRef.current(false);
       if (widgetIdRef.current) window.turnstile?.reset(widgetIdRef.current);
     }
-  }, [onVerified]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,11 +59,11 @@ export function CaptchaWidget({ onVerified }: { onVerified: (verified: boolean) 
         if (cancelled) return;
         if (result.verified) {
           setStatus("verified");
-          onVerified(true);
+          onVerifiedRef.current(true);
         } else if (!result.configured) {
           setStatus("error");
           setMessage("Human verification is not configured yet.");
-          onVerified(false);
+          onVerifiedRef.current(false);
         } else {
           setStatus("challenge");
         }
@@ -67,14 +72,10 @@ export function CaptchaWidget({ onVerified }: { onVerified: (verified: boolean) 
         if (!cancelled) {
           setStatus("error");
           setMessage("Human verification is temporarily unavailable.");
-          onVerified(false);
+          onVerifiedRef.current(false);
         }
       });
     return () => { cancelled = true; };
-  }, [onVerified]);
-
-  useEffect(() => {
-    if (window.turnstile) setScriptReady(true);
   }, []);
 
   useEffect(() => {
@@ -87,18 +88,18 @@ export function CaptchaWidget({ onVerified }: { onVerified: (verified: boolean) 
       size: "flexible",
       theme: "light",
       callback: exchangeToken,
-      "expired-callback": () => onVerified(false),
+      "expired-callback": () => onVerifiedRef.current(false),
       "error-callback": () => {
         setStatus("error");
         setMessage("Human verification could not load. Please retry.");
-        onVerified(false);
+        onVerifiedRef.current(false);
       },
     });
     return () => {
       if (widgetIdRef.current) window.turnstile?.remove(widgetIdRef.current);
       widgetIdRef.current = null;
     };
-  }, [exchangeToken, onVerified, scriptReady, siteKey, status]);
+  }, [exchangeToken, scriptReady, siteKey, status]);
 
   return (
     <div className={`captcha-widget captcha-${status}`} id={`captcha-${reactId.replace(/:/g, "")}`}>
@@ -119,4 +120,3 @@ export function CaptchaWidget({ onVerified }: { onVerified: (verified: boolean) 
     </div>
   );
 }
-

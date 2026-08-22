@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
+import { CaptchaWidget } from "@/components/captcha-widget";
 import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
 import type { Coordinates, LocationSearchResult } from "@/types/restroom";
 
@@ -62,6 +63,7 @@ export function AdvertiseDialog({
   const [confirmedPublic, setConfirmedPublic] = useState(false);
   const [status, setStatus] = useState<"idle" | "locating" | "checkout">("idle");
   const [error, setError] = useState("");
+  const [captchaReady, setCaptchaReady] = useState(false);
 
   if (!open) return null;
 
@@ -73,7 +75,7 @@ export function AdvertiseDialog({
 
   async function pinAddress() {
     if (!address.trim()) {
-      setError("Enter the restroom address before placing its advertising pin.");
+      setError("Enter the restroom address before placing its promotion pin.");
       return;
     }
 
@@ -109,7 +111,7 @@ export function AdvertiseDialog({
     setStatus("checkout");
     const pinnedCoordinates = coordinates || currentLocation;
     try {
-      const response = await fetch("/api/ads/checkout", {
+      const response = await fetch("/api/business/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -144,30 +146,30 @@ export function AdvertiseDialog({
   }
 
   return (
-    <div className="dialog-backdrop advertise-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="dialog-backdrop business-flow-backdrop" role="presentation" onMouseDown={onClose}>
       <section
-        aria-labelledby="advertise-title"
+        aria-labelledby="business-promotion-title"
         aria-modal="true"
-        className="advertise-dialog"
+        className="business-promotion-dialog"
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
       >
-        <button className="icon-button dialog-close" onClick={onClose} aria-label="Close advertising form"><X size={20} /></button>
+        <button className="icon-button dialog-close" onClick={onClose} aria-label="Close business promotion form"><X size={20} /></button>
 
-        <div className="advertise-form-pane">
-          <div className="advertise-intro-icon"><Megaphone size={24} /></div>
+        <div className="business-promotion-form-pane">
+          <div className="business-promotion-intro-icon"><Megaphone size={24} /></div>
           <p className="eyebrow">Right place, right moment</p>
-          <h2 id="advertise-title">Turn restroom visits into customers.</h2>
+          <h2 id="business-promotion-title">Turn restroom visits into customers.</h2>
           <p className="dialog-copy">
             Promote a genuinely available restroom to nearby people and give them an optional offer, promo code, or QR destination.
           </p>
 
-          <div className="ad-price-strip">
+          <div className="promotion-price-strip">
             <strong>{formatPrice(totalPriceCents)}</strong>
             <span>{offer.durationDays} days · {formatPrice(offer.priceCents)} listing{placementBidCents > 0 ? ` + ${formatPrice(placementBidCents)} placement bid` : ""} · no subscription</span>
           </div>
 
-          <form className="advertise-form" onSubmit={startCheckout}>
+          <form className="business-promotion-form" onSubmit={startCheckout}>
             <fieldset>
               <legend>Place</legend>
               <div className="form-grid">
@@ -242,23 +244,23 @@ export function AdvertiseDialog({
 
             <fieldset>
               <legend>Local reach</legend>
-              <div className="ad-radius-options" role="group" aria-label="Advertising radius">
+              <div className="placement-radius-options" role="group" aria-label="Promotion radius">
                 {radiusOptions.map((radius) => (
                   <button className={radiusMiles === radius ? "active" : ""} key={radius} onClick={() => setRadiusMiles(radius)} type="button">
                     {radius} mi
                   </button>
                 ))}
               </div>
-              <p className="ad-radius-note"><MapPin size={14} /> The promotion appears only to people within {radiusMiles} {radiusMiles === 1 ? "mile" : "miles"} of this restroom.</p>
+              <p className="placement-radius-note"><MapPin size={14} /> The promotion appears only to people within {radiusMiles} {radiusMiles === 1 ? "mile" : "miles"} of this restroom.</p>
             </fieldset>
 
             <fieldset>
               <legend>Placement bid <small>optional</small></legend>
-              <div className="ad-bid-copy">
+              <div className="placement-bid-copy">
                 <Gavel size={18} />
                 <p>There are {offer.sponsoredSlotCount} sponsored slots in each local search. Higher one-time bids rank first; distance breaks ties. Choose no boost for standard sponsored eligibility.</p>
               </div>
-              <div className="ad-bid-options" role="group" aria-label="One-time placement bid">
+              <div className="placement-bid-options" role="group" aria-label="One-time placement bid">
                 {bidOptions.map((amount) => (
                   <button className={placementBidCents === amount ? "active" : ""} key={amount} onClick={() => setPlacementBidCents(amount)} type="button">
                     <span>{amount === 0 ? "No boost" : `+${formatPrice(amount)}`}</span>
@@ -266,43 +268,44 @@ export function AdvertiseDialog({
                   </button>
                 ))}
               </div>
-              <p className="ad-bid-warning">Paid once at checkout—not per click. A bid improves rank but cannot guarantee a slot when three higher eligible bids are nearby.</p>
+              <p className="placement-bid-warning">Paid once at checkout—not per click. A bid improves rank but cannot guarantee a slot when three higher eligible bids are nearby.</p>
             </fieldset>
 
-            <label className="ad-confirmation">
+            <label className="promotion-confirmation">
               <input checked={confirmedPublic} onChange={(event) => setConfirmedPublic(event.target.checked)} required type="checkbox" />
               <span>I confirm this restroom is genuinely available during the hours shown and that the offer is accurate.</span>
             </label>
 
+            <CaptchaWidget onVerified={setCaptchaReady} />
             {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="button button-primary button-full ad-checkout-button" disabled={status === "checkout"}>
+            <button className="button button-primary button-full promotion-checkout-button" disabled={status === "checkout" || !captchaReady}>
               <BadgeDollarSign size={19} /> {status === "checkout" ? "Opening secure checkout…" : `Pay ${formatPrice(totalPriceCents)} & launch for ${offer.durationDays} days`}
             </button>
-            <p className="ad-payment-note"><ShieldCheck size={14} /> Stripe shows the base listing and placement bid separately. Campaign details can’t be activated from the browser.</p>
+            <p className="promotion-payment-note"><ShieldCheck size={14} /> Stripe shows the base listing and placement bid separately. Campaign details can’t be activated from the browser.</p>
           </form>
         </div>
 
-        <aside className="advertise-preview-pane" aria-label="Advertisement preview">
-          <div className="advertise-preview-heading"><Sparkles size={16} /><span>Live preview</span></div>
-          <div className="ad-preview-card">
-            <div className="ad-preview-topline"><span>{placementBidCents > 0 ? "Priority sponsored" : "Sponsored"}</span><small>{radiusMiles} mi radius</small></div>
-            <div className="ad-preview-place">
-              <div className="ad-preview-pin"><MapPin size={21} /></div>
+        <aside className="business-promotion-preview-pane" aria-label="Sponsored promotion preview">
+          <div className="business-promotion-preview-heading"><Sparkles size={16} /><span>Live preview</span></div>
+          <div className="promotion-preview-card">
+            <div className="promotion-preview-topline"><span>{placementBidCents > 0 ? "Priority sponsored" : "Sponsored"}</span><small>{radiusMiles} mi radius</small></div>
+            <div className="promotion-preview-place">
+              <div className="promotion-preview-pin"><MapPin size={21} /></div>
               <div><small>{businessName || "Your business"}</small><strong>{restroomName || "Your restroom"}</strong><span>{address || "Restroom address"}</span></div>
             </div>
-            <div className="ad-preview-offer">
+            <div className="promotion-preview-offer">
               <p>{headline || "Give nearby visitors a reason to stop in."}</p>
               <span>{offerText || "Add a useful offer, discount, or welcome message."}</span>
             </div>
             {(promoCode || previewQrUrl) && (
-              <div className="ad-preview-redemption">
+              <div className="promotion-preview-redemption">
                 {promoCode && <div><small>Promo code</small><strong>{promoCode}</strong></div>}
                 {previewQrUrl && <QRCodeSVG bgColor="#ffffff" fgColor="#17231d" level="M" marginSize={1} size={78} value={previewQrUrl} />}
               </div>
             )}
-            <div className="ad-preview-footer"><Check size={14} /> Restroom available · offer optional</div>
+            <div className="promotion-preview-footer"><Check size={14} /> Restroom available · offer optional</div>
           </div>
-          <div className="ad-preview-explainer">
+          <div className="promotion-preview-explainer">
             <h3>Campaign setup</h3>
             <ul>
               <li><MapPin size={15} /> Location-targeted placement</li>

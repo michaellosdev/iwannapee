@@ -100,7 +100,17 @@ export function GoogleAnalytics({ measurementId }: { measurementId?: string }) {
       <Script id="iwannapee-ga4" strategy="afterInteractive">
         {`
           gtag('js', new Date());
-          gtag('config', '${measurementId}');
+          var iwannapeePagePath = window.location.pathname;
+          gtag('config', '${measurementId}', {
+            send_page_view: false,
+            page_location: window.location.origin + iwannapeePagePath,
+            page_path: iwannapeePagePath
+          });
+          gtag('event', 'page_view', {
+            page_location: window.location.origin + iwannapeePagePath,
+            page_path: iwannapeePagePath,
+            page_title: document.title
+          });
         `}
       </Script>
 

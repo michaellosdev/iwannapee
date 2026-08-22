@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Camera, Check, Crosshair, MapPin, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
+import { CaptchaWidget } from "@/components/captcha-widget";
 import { createClient } from "@/lib/supabase/client";
 import type { Coordinates, LocationSearchResult, RestroomFeature } from "@/types/restroom";
 
@@ -42,6 +43,7 @@ export function SubmitRestroomDialog({
   const [locationLabel, setLocationLabel] = useState("Using your current map location");
   const [status, setStatus] = useState<"idle" | "locating" | "submitting" | "success">("idle");
   const [error, setError] = useState("");
+  const [captchaReady, setCaptchaReady] = useState(false);
 
   if (!open) return null;
 
@@ -93,14 +95,23 @@ export function SubmitRestroomDialog({
     }
 
     setStatus("submitting");
-    let coverPhotoUrl: string | null = null;
+    let coverPhotoStoragePath: string | null = null;
 
     if (photo) {
-      const extension = photo.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${user.id}/${crypto.randomUUID()}.${extension}`;
+      const signedResponse = await fetch("/api/storage/restroom-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentType: photo.type, size: photo.size }),
+      });
+      const signed = (await signedResponse.json()) as { path?: string; token?: string; error?: string };
+      if (!signedResponse.ok || !signed.path || !signed.token) {
+        setStatus("idle");
+        setError(signed.error || "Photo upload could not start.");
+        return;
+      }
       const { error: uploadError } = await supabase.storage
         .from("restroom-photos")
-        .upload(path, photo, { contentType: photo.type, upsert: false });
+        .uploadToSignedUrl(signed.path, signed.token, photo, { contentType: photo.type });
 
       if (uploadError) {
         setStatus("idle");
@@ -108,31 +119,33 @@ export function SubmitRestroomDialog({
         return;
       }
 
-      coverPhotoUrl = supabase.storage.from("restroom-photos").getPublicUrl(path).data.publicUrl;
+      coverPhotoStoragePath = signed.path;
     }
 
     const submissionFeatures = accessCode
       ? Array.from(new Set([...features, "Code available"]))
       : features;
 
-    const { error: insertError } = await supabase.from("restrooms").insert({
-      name,
-      address,
-      latitude: (coordinates || currentLocation).latitude,
-      longitude: (coordinates || currentLocation).longitude,
-      hours,
-      directions,
-      access_code: accessCode || null,
-      access_instructions: accessInstructions || null,
-      cover_photo_url: coverPhotoUrl,
-      features: submissionFeatures,
-      created_by: user.id,
-      status: "pending",
+    const submissionResponse = await fetch("/api/restrooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        address,
+        latitude: (coordinates || currentLocation).latitude,
+        longitude: (coordinates || currentLocation).longitude,
+        hours,
+        directions,
+        accessCode,
+        accessInstructions,
+        coverPhotoStoragePath,
+        features: submissionFeatures,
+      }),
     });
-
-    if (insertError) {
+    const submission = (await submissionResponse.json()) as { error?: string; submitted?: boolean };
+    if (!submissionResponse.ok || !submission.submitted) {
       setStatus("idle");
-      setError(insertError.message);
+      setError(submission.error || "We couldn’t save this restroom.");
       return;
     }
 
@@ -232,10 +245,11 @@ export function SubmitRestroomDialog({
                 <input accept="image/jpeg,image/png,image/webp" onChange={(event) => setPhoto(event.target.files?.[0] || null)} type="file" />
               </label>
 
+              <CaptchaWidget onVerified={setCaptchaReady} />
               {error && <p className="form-error" role="alert">{error}</p>}
               <div className="dialog-actions">
                 <button className="button button-ghost" onClick={onClose} type="button">Cancel</button>
-                <button className="button button-primary" disabled={status === "submitting"}>
+                <button className="button button-primary" disabled={status === "submitting" || !captchaReady}>
                   {status === "submitting" ? "Submitting…" : "Submit for review"}
                 </button>
               </div>

@@ -21,6 +21,7 @@ export async function POST(request: Request) {
     limit: 12,
     windowSeconds: 60 * 60,
     identifier: authData.user.id,
+    includeAddress: false,
   });
   const limited = rateLimitResponse(limit);
   if (limited) return limited;
@@ -44,4 +45,3 @@ export async function POST(request: Request) {
 
   return Response.json({ path, token: data.token });
 }
-
