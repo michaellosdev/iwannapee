@@ -38,6 +38,14 @@ body {
   overflow-x: clip;
 }
 
+@media (max-width: 760px) {
+  html.mobile-overlay-open,
+  body.mobile-overlay-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+}
+
 button,
 input,
 textarea {
@@ -1385,12 +1393,33 @@ a {
   box-shadow: var(--shadow);
   max-width: 490px;
   overflow: hidden;
-  overflow-y: auto;
   position: fixed;
   right: 12px;
   top: 12px;
   width: calc(100% - 24px);
   z-index: 1500;
+}
+
+.detail-panel-actions {
+  display: flex;
+  justify-content: space-between;
+  left: 15px;
+  pointer-events: none;
+  position: absolute;
+  right: 15px;
+  top: 15px;
+  z-index: 3;
+}
+
+.detail-panel-actions .icon-button {
+  pointer-events: auto;
+}
+
+.detail-panel-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .detail-photo {
@@ -1414,12 +1443,8 @@ a {
 
 .detail-close,
 .detail-share {
-  position: absolute;
-  top: 15px;
+  position: static;
 }
-
-.detail-close { left: 15px; }
-.detail-share { right: 15px; }
 
 .detail-content {
   padding: 25px 27px 30px;
@@ -4922,6 +4947,14 @@ a {
     padding: 29px 20px 25px;
   }
 
+  .dialog-card > .dialog-close {
+    margin: -17px -8px -23px auto;
+    position: sticky;
+    right: auto;
+    top: 12px;
+    z-index: 5;
+  }
+
   .dialog-card h2 {
     font-size: 27px;
     padding-right: 30px;
@@ -4933,6 +4966,14 @@ a {
     max-height: 93vh;
     max-width: none;
     overflow-y: auto;
+  }
+
+  .business-promotion-dialog > .dialog-close {
+    margin: 12px 12px -52px auto;
+    position: sticky;
+    right: auto;
+    top: 12px;
+    z-index: 5;
   }
 
   .business-promotion-form-pane,

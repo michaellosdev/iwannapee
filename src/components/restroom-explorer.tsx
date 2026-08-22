@@ -61,6 +61,71 @@ const RestroomMap = dynamic(() => import("@/components/restroom-map"), {
   loading: () => <div className="map-loading"><span />Loading the neighborhood…</div>,
 });
 
+function useMobileOverlayScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+
+    const mobileViewport = window.matchMedia("(max-width: 760px)");
+    const previousBodyStyles = {
+      left: document.body.style.left,
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      right: document.body.style.right,
+      top: document.body.style.top,
+      width: document.body.style.width,
+    };
+    let locked = false;
+    let scrollPosition = 0;
+
+    function lock() {
+      if (locked || !mobileViewport.matches) return;
+
+      locked = true;
+      scrollPosition = window.scrollY;
+      document.documentElement.classList.add("mobile-overlay-open");
+      document.body.classList.add("mobile-overlay-open");
+      document.body.style.left = "0";
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.right = "0";
+      document.body.style.top = `-${scrollPosition}px`;
+      document.body.style.width = "100%";
+    }
+
+    function unlock() {
+      if (!locked) return;
+
+      locked = false;
+      document.body.style.left = previousBodyStyles.left;
+      document.body.style.overflow = previousBodyStyles.overflow;
+      document.body.style.position = previousBodyStyles.position;
+      document.body.style.right = previousBodyStyles.right;
+      document.body.style.top = previousBodyStyles.top;
+      document.body.style.width = previousBodyStyles.width;
+
+      const previousScrollBehavior = document.documentElement.style.scrollBehavior;
+      document.documentElement.style.scrollBehavior = "auto";
+      window.scrollTo(0, scrollPosition);
+      document.documentElement.style.scrollBehavior = previousScrollBehavior;
+      document.documentElement.classList.remove("mobile-overlay-open");
+      document.body.classList.remove("mobile-overlay-open");
+    }
+
+    function syncLockToViewport() {
+      if (mobileViewport.matches) lock();
+      else unlock();
+    }
+
+    syncLockToViewport();
+    mobileViewport.addEventListener("change", syncLockToViewport);
+
+    return () => {
+      mobileViewport.removeEventListener("change", syncLockToViewport);
+      unlock();
+    };
+  }, [active]);
+}
+
 type FilterKey = "open" | "accessible" | "code" | "free";
 
 type NearbyRestroomRow = {
@@ -378,15 +443,18 @@ function RestroomDetail({
 
   return (
     <aside className="detail-panel" aria-label={`${restroom.name} details`}>
-      <div className="detail-photo">
-        {restroom.coverPhotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img alt={`Restroom at ${restroom.name}`} src={restroom.coverPhotoUrl} />
-        ) : <div className="photo-placeholder"><Toilet size={40} /></div>}
+      <div className="detail-panel-actions">
         <button className="icon-button detail-close" onClick={onClose} aria-label="Close details"><X size={20} /></button>
         <button className="icon-button detail-share" onClick={shareRestroom} aria-label="Share restroom"><Share2 size={19} /></button>
       </div>
-      <div className="detail-content">
+      <div className="detail-panel-scroll">
+        <div className="detail-photo">
+          {restroom.coverPhotoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt={`Restroom at ${restroom.name}`} src={restroom.coverPhotoUrl} />
+          ) : <div className="photo-placeholder"><Toilet size={40} /></div>}
+        </div>
+        <div className="detail-content">
         <div className="detail-title-row">
           <div>
             <span className={restroom.promotion ? "promoted-text" : restroom.openNow ? "open-text" : restroom.openNow === null ? "unknown-text" : "closed-text"}>{restroom.promotion ? `Sponsored by ${restroom.promotion.businessName}` : restroom.openNow === null ? "Hours not confirmed" : restroom.openNow ? "Open now" : "Closed"}</span>
@@ -493,6 +561,7 @@ function RestroomDetail({
         {restroom.source === "promotion" && (
           <p className="verification-line"><ShieldCheck size={15} /> Paid placement · availability and offer supplied by {restroom.promotion?.businessName}</p>
         )}
+        </div>
       </div>
     </aside>
   );
@@ -523,6 +592,8 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
   const [searchCaptchaRequired, setSearchCaptchaRequired] = useState(false);
   const [searchRetryNonce, setSearchRetryNonce] = useState(0);
   const promotionViewId = useRef("");
+
+  useMobileOverlayScrollLock(Boolean(selected || reviewing || authOpen || submitOpen || advertiseOpen));
 
   const recordPromotionEvent = useCallback((campaignId: string, eventType: PromotionActivityType) => {
     if (!promotionViewId.current) promotionViewId.current = createPromotionViewId();
