@@ -3,8 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Clipboard, ExternalLink, Eye, Megaphone, MousePointerClick, Plus, QrCode } from "lucide-react";
 import { CampaignLifecycleControls } from "@/components/campaign-lifecycle-controls";
+import { BusinessProfileManager } from "@/components/business-profile-manager";
 import { ResumePromotionPaymentButton } from "@/components/resume-promotion-payment-button";
 import { formatPrice } from "@/lib/advertising";
+import type { PublicBusinessProfile } from "@/lib/public-directory";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +25,7 @@ type PromotionAnalyticsRow = {
   headline: string;
   status: string;
   is_test: boolean;
+  is_complimentary: boolean;
   starts_at: string | null;
   ends_at: string | null;
   created_at: string;
@@ -49,9 +53,16 @@ export default async function BusinessAnalyticsPage() {
   const { data: authData } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
   if (!authData.user || !supabase) redirect("/?business_account=1");
 
-  const { data, error } = await supabase.rpc("business_promotion_analytics");
+  const admin = createAdminClient();
+  const [{ data, error }, profilesResult, claimsResult] = await Promise.all([
+    supabase.rpc("business_promotion_analytics"),
+    admin ? admin.from("business_profiles").select("id,restroom_id,business_name,description,profile_image_url,cover_image_url,website_url,public_email,phone,instagram_url,facebook_url,tiktok_url,promotion_headline,promotion_offer_text,promotion_code,verified_at,updated_at").eq("owner_user_id", authData.user.id).eq("status", "verified").order("verified_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
+    admin ? admin.from("business_claims").select("id,business_name,status,priority,created_at,restrooms(name,address)").eq("claimant_user_id", authData.user.id).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
+  ]);
   if (error) throw new Error("Promotion analytics are temporarily unavailable");
   const campaigns = (data || []) as PromotionAnalyticsRow[];
+  const profiles = (profilesResult.data || []) as PublicBusinessProfile[];
+  const claims = (claimsResult.data || []) as Array<{ id: string; business_name: string; status: string; priority: string; created_at: string; restrooms: { name: string; address: string } | Array<{ name: string; address: string }> | null }>;
   const totals = campaigns.reduce((sum, campaign) => ({
     impressions: sum.impressions + Number(campaign.impression_count || 0),
     opens: sum.opens + Number(campaign.detail_open_count || 0),
@@ -72,6 +83,18 @@ export default async function BusinessAnalyticsPage() {
         </div>
       </header>
 
+      {profiles.map((profile) => <BusinessProfileManager key={profile.id} profile={profile} />)}
+
+      {claims.length > 0 ? (
+        <section className="business-claims-status">
+          <div><p className="eyebrow">Business claims</p><h2>Ownership review</h2><p>Claims are manually verified before a business profile or complimentary placement becomes public.</p></div>
+          <div>{claims.map((claim) => {
+            const restroom = Array.isArray(claim.restrooms) ? claim.restrooms[0] : claim.restrooms;
+            return <article key={claim.id}><span className={`campaign-status campaign-status-${claim.status}`}>{claim.status.replaceAll("_", " ")}</span><strong>{claim.business_name}</strong><p>{restroom?.name || "Restroom listing"} · {restroom?.address || "Address unavailable"}</p><small>Submitted {dateLabel(claim.created_at)} · Claim {claim.id.slice(0, 8)}</small></article>;
+          })}</div>
+        </section>
+      ) : null}
+
       <section className="business-dashboard-summary" aria-label="Promotion totals">
         <div><Eye size={21} /><span><strong>{totals.impressions.toLocaleString()}</strong><small>Appearances</small></span></div>
         <div><MousePointerClick size={21} /><span><strong>{totals.opens.toLocaleString()}</strong><small>Promotion opens</small></span></div>
@@ -90,7 +113,7 @@ export default async function BusinessAnalyticsPage() {
                 </div>
                 <div className="business-campaign-dates">
                   <span>{dateLabel(campaign.starts_at)}–{dateLabel(campaign.ends_at)}</span>
-                  <small>{formatPrice(campaign.price_cents + campaign.placement_bid_cents)} campaign{campaign.support_amount_cents > 0 ? ` · ${formatPrice(campaign.support_amount_cents)} project support` : ""}</small>
+                  <small>{campaign.is_complimentary ? "Complimentary launch placement" : `${formatPrice(campaign.price_cents + campaign.placement_bid_cents)} campaign`}{campaign.support_amount_cents > 0 ? ` · ${formatPrice(campaign.support_amount_cents)} project support` : ""}</small>
                 </div>
               </div>
               <p className="business-campaign-headline">“{campaign.headline}”</p>

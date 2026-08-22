@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { QRCodeSVG } from "qrcode.react";
@@ -53,6 +54,7 @@ import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
 import { demoRestrooms, DEFAULT_LOCATION } from "@/lib/demo-restrooms";
 import { distanceInMeters, formatDistance } from "@/lib/distance";
 import { createPromotionViewId, recordPromotionActivity, type PromotionActivityType } from "@/lib/promotion-activity";
+import { restroomPath } from "@/lib/public-links";
 import { SUPPORT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/client";
 import type { Coordinates, LocationSearchResult, Restroom, RestroomFeature } from "@/types/restroom";
@@ -435,7 +437,9 @@ function RestroomDetail({
   }
 
   async function shareRestroom() {
-    const shareData = { title: restroom.name, text: `${restroom.name} — ${restroom.address}`, url: window.location.href };
+    const publicId = restroom.promotion?.restroomId || restroom.id;
+    const url = /^[0-9a-f-]{36}$/i.test(publicId) ? `${window.location.origin}${restroomPath({ id: publicId, name: restroom.name })}` : window.location.href;
+    const shareData = { title: restroom.name, text: `${restroom.name} — ${restroom.address}`, url };
     if (navigator.share) await navigator.share(shareData);
     else {
       await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
@@ -489,6 +493,7 @@ function RestroomDetail({
           {(!restroom.promotion || restroom.promotion.restroomId) && (
             <button className="button button-secondary" onClick={onRate}><Star size={17} /> {restroom.promotion ? "Rate restroom" : "Rate it"}</button>
           )}
+          {/^[0-9a-f-]{36}$/i.test(restroom.promotion?.restroomId || restroom.id) ? <a className="button button-secondary" href={restroomPath({ id: restroom.promotion?.restroomId || restroom.id, name: restroom.name })}>Full listing</a> : null}
         </div>
 
         {restroom.promotion && (
@@ -594,6 +599,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
   const [searchCaptchaRequired, setSearchCaptchaRequired] = useState(false);
   const [searchRetryNonce, setSearchRetryNonce] = useState(0);
   const promotionViewId = useRef("");
+  const requestedRestroomId = useRef("");
 
   useMobileOverlayScrollLock(Boolean(selected || reviewing || authOpen || submitOpen || advertiseOpen));
 
@@ -682,6 +688,13 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
+    const requestedLatitude = Number(params.get("lat"));
+    const requestedLongitude = Number(params.get("lng"));
+    if (Number.isFinite(requestedLatitude) && requestedLatitude >= -90 && requestedLatitude <= 90 && Number.isFinite(requestedLongitude) && requestedLongitude >= -180 && requestedLongitude <= 180) {
+      window.setTimeout(() => setCenter({ latitude: requestedLatitude, longitude: requestedLongitude }), 0);
+      window.setTimeout(() => setLocationLabel("Near the selected restroom"), 0);
+    }
+    if (/^[0-9a-f-]{36}$/i.test(params.get("restroom") || "")) requestedRestroomId.current = params.get("restroom") || "";
     if (params.get("submit") === "1") window.setTimeout(() => setSubmitOpen(true), 0);
     if (params.get("business") === "1" || params.get("advertise") === "1") window.setTimeout(() => setAdvertiseOpen(true), 0);
     if (params.get("business_account") === "1") {
@@ -701,6 +714,15 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
     }
     // Run once; the permission callback reads browser state only.
   }, []);
+
+  useEffect(() => {
+    if (!requestedRestroomId.current || restrooms.length === 0) return;
+    const match = restrooms.find((restroom) => restroom.id === requestedRestroomId.current || restroom.promotion?.restroomId === requestedRestroomId.current);
+    if (match) {
+      setSelected(match);
+      requestedRestroomId.current = "";
+    }
+  }, [restrooms]);
 
   useEffect(() => {
     if (search.trim().length < 3) {
@@ -829,6 +851,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
         </a>
         <nav className={mobileNavOpen ? "main-nav open" : "main-nav"} aria-label="Main navigation">
           <a href="#find" onClick={() => setMobileNavOpen(false)}>Find a restroom</a>
+          <Link href="/restrooms">Directory</Link>
           <a href="#world-rankings" onClick={() => setMobileNavOpen(false)}>World rankings</a>
           <a href="#how-it-works" onClick={() => setMobileNavOpen(false)}>How it works</a>
           <button className="nav-link" onClick={beginSubmission}>Add a restroom</button>
@@ -1016,7 +1039,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
         <div className="site-footer-content">
           <a className="brand brand-footer" href="#top" aria-label="IWANNAPEE home"><span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-mark.png" width={512} /></span><span>IWANNAPEE</span></a>
           <p>Everyone deserves dignified access to a restroom.</p>
-          <nav className="site-footer-links" aria-label="Footer"><button onClick={openAccount}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button><a href="/terms">Terms</a><a href="/refund-policy">Refund Policy</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></nav>
+          <nav className="site-footer-links" aria-label="Footer"><button onClick={openAccount}>Account</button><Link href="/restrooms">Restroom directory</Link><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button><a href="/terms">Terms</a><a href="/refund-policy">Refund Policy</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></nav>
         </div>
         <SiteAttribution />
       </footer>

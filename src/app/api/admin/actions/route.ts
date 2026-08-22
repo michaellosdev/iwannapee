@@ -18,6 +18,17 @@ function text(value: unknown, max: number) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function optionalUrl(value: unknown) {
+  const candidate = text(value, 500);
+  if (!candidate) return null;
+  try {
+    const parsed = new URL(candidate);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function POST(request: Request) {
   const access = await getOwnerAccess();
   if (!access.user) return Response.json({ error: "Sign in required." }, { status: 401 });
@@ -38,6 +49,95 @@ export async function POST(request: Request) {
   if (!admin) return Response.json({ error: "Supabase server access is not configured." }, { status: 503 });
 
   try {
+    if (action === "business_claim_status") {
+      const id = validId(body?.id);
+      const status = body?.status === "approved" || body?.status === "needs_info" || body?.status === "rejected" ? body.status : null;
+      if (!id || !status) throw new Error("Invalid business claim action");
+      if (status === "approved") {
+        const { error } = await admin.rpc("approve_business_claim", { p_claim_id: id, p_admin_id: access.user.id });
+        if (error) throw error;
+        return Response.json({ message: "Business claim verified. Its public profile and complimentary 7-day placement are now active." });
+      }
+      const now = new Date().toISOString();
+      const { error } = await admin.from("business_claims").update({
+        status,
+        admin_notes: text(body?.adminNotes, 2000) || null,
+        reviewed_by: access.user.id,
+        reviewed_at: status === "rejected" ? now : null,
+        updated_at: now,
+      }).eq("id", id).in("status", ["pending", "needs_info"]);
+      if (error) throw error;
+      return Response.json({ message: status === "needs_info" ? "Claim marked as needing more proof." : "Business claim rejected." });
+    }
+
+    if (action === "queue_priority") {
+      const id = validId(body?.id);
+      const resourceType = typeof body?.resourceType === "string" && ["business_claim", "restroom", "community_photo", "community_note", "restroom_update", "report", "campaign", "profile"].includes(body.resourceType) ? body.resourceType : null;
+      const priority = typeof body?.priority === "string" && ["low", "normal", "high", "urgent"].includes(body.priority) ? body.priority : null;
+      if (!id || !resourceType || !priority) throw new Error("Invalid queue priority");
+      const now = new Date().toISOString();
+      const { error } = await admin.from("admin_queue_priorities").upsert({ resource_type: resourceType, resource_id: id, priority, note: text(body?.note, 500) || null, updated_by: access.user.id, updated_at: now }, { onConflict: "resource_type,resource_id" });
+      if (error) throw error;
+      if (resourceType === "business_claim") {
+        const { error: claimError } = await admin.from("business_claims").update({ priority, updated_at: now }).eq("id", id);
+        if (claimError) throw claimError;
+      }
+      return Response.json({ message: `Priority set to ${priority}.` });
+    }
+
+    if (action === "business_profile_status") {
+      const id = validId(body?.id);
+      const status = body?.status === "verified" || body?.status === "suspended" ? body.status : null;
+      if (!id || !status) throw new Error("Invalid business profile action");
+      const { data: profile, error: profileReadError } = await admin.from("business_profiles").select("id,launch_campaign_id").eq("id", id).single();
+      if (profileReadError || !profile) throw profileReadError || new Error("Business profile not found");
+      const { error } = await admin.from("business_profiles").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      if (status === "suspended" && profile.launch_campaign_id) {
+        const now = new Date().toISOString();
+        const { error: campaignError } = await admin.from("advertising_campaigns").update({ status: "cancelled", stopped_at: now, stopped_by: access.user.id, updated_at: now }).eq("id", profile.launch_campaign_id).eq("status", "active");
+        if (campaignError) throw campaignError;
+      }
+      return Response.json({ message: status === "verified" ? "Business profile restored." : "Business profile suspended." });
+    }
+
+    if (action === "business_profile_update") {
+      const id = validId(body?.id);
+      const businessName = text(body?.businessName, 120);
+      const publicEmail = text(body?.publicEmail, 254).toLowerCase() || null;
+      const websiteUrl = optionalUrl(body?.websiteUrl);
+      const instagramUrl = optionalUrl(body?.instagramUrl);
+      const facebookUrl = optionalUrl(body?.facebookUrl);
+      const tiktokUrl = optionalUrl(body?.tiktokUrl);
+      if (!id || businessName.length < 2 || (publicEmail && !/^\S+@\S+\.\S+$/.test(publicEmail)) || [websiteUrl, instagramUrl, facebookUrl, tiktokUrl].some((value) => value === undefined)) throw new Error("Check the business profile fields");
+      const { data: profile, error: profileError } = await admin.from("business_profiles").select("id,restroom_id,launch_campaign_id").eq("id", id).single();
+      if (profileError || !profile) throw profileError || new Error("Business profile not found");
+      const changes = {
+        business_name: businessName,
+        description: text(body?.description, 1200) || null,
+        website_url: websiteUrl,
+        public_email: publicEmail,
+        phone: text(body?.phone, 40) || null,
+        instagram_url: instagramUrl,
+        facebook_url: facebookUrl,
+        tiktok_url: tiktokUrl,
+        promotion_headline: text(body?.promotionHeadline, 100) || null,
+        promotion_offer_text: text(body?.promotionOfferText, 280) || null,
+        promotion_code: text(body?.promotionCode, 40) || null,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await admin.from("business_profiles").update(changes).eq("id", id);
+      if (error) throw error;
+      if (profile.launch_campaign_id) {
+        const { data: restroom } = await admin.from("restrooms").select("name,address,latitude,longitude,hours,hours_schedule_status,timezone,weekly_hours,directions").eq("id", profile.restroom_id).single();
+        if (restroom) {
+          const { error: campaignError } = await admin.from("advertising_campaigns").update({ business_name: businessName, restroom_name: restroom.name, address: restroom.address, latitude: restroom.latitude, longitude: restroom.longitude, hours: restroom.hours, hours_schedule_status: restroom.hours_schedule_status, timezone: restroom.timezone, weekly_hours: restroom.weekly_hours, directions: restroom.directions, headline: changes.promotion_headline || "Community-verified restroom", offer_text: changes.promotion_offer_text || "A verified local business welcoming restroom visitors.", promo_code: changes.promotion_code, destination_url: websiteUrl, updated_at: new Date().toISOString() }).eq("id", profile.launch_campaign_id).eq("business_profile_id", id);
+          if (campaignError) throw campaignError;
+        }
+      }
+      return Response.json({ message: "Business profile details saved." });
+    }
+
     if (action === "restroom_status") {
       const id = validId(body?.id);
       const status = body?.status === "published" || body?.status === "rejected" ? body.status : null;
