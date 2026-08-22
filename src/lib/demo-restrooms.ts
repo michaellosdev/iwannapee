@@ -1,0 +1,101 @@
+import type { Restroom } from "@/types/restroom";
+
+export const DEFAULT_LOCATION = {
+  latitude: 34.052235,
+  longitude: -118.243683,
+};
+
+export const demoRestrooms: Restroom[] = [
+  {
+    id: "demo-grand-park",
+    name: "Grand Park Welcome Center",
+    address: "200 N Grand Ave, Los Angeles, CA",
+    description:
+      "Bright public facilities beside the splash pad with attendants nearby during park hours.",
+    directions: "Enter from Grand Avenue and follow signs beside the splash pad.",
+    hours: "5:30 AM–10:00 PM",
+    openNow: true,
+    accessCode: null,
+    accessInstructions: "No purchase or code required.",
+    coverPhotoUrl:
+      "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1200&q=85",
+    rating: 4.8,
+    cleanlinessRating: 4.7,
+    reviewCount: 126,
+    distanceMeters: 320,
+    features: ["Accessible", "Baby changing", "Gender neutral", "Free"],
+    lastVerifiedAt: "2026-08-20T18:30:00.000Z",
+    latitude: 34.055478,
+    longitude: -118.245083,
+    source: "demo",
+  },
+  {
+    id: "demo-central-library",
+    name: "Central Library — Lower Level",
+    address: "630 W 5th St, Los Angeles, CA",
+    description:
+      "Well-maintained multi-stall restroom inside the library. A library card is not needed to enter.",
+    directions: "Use the Flower Street entrance, then take the escalator down one level.",
+    hours: "10:00 AM–8:00 PM",
+    openNow: true,
+    accessCode: null,
+    accessInstructions: "Ask the information desk if the lower-level door is closed.",
+    coverPhotoUrl:
+      "https://images.unsplash.com/photo-1620626011761-996317b8d101?auto=format&fit=crop&w=1200&q=85",
+    rating: 4.6,
+    cleanlinessRating: 4.8,
+    reviewCount: 89,
+    distanceMeters: 710,
+    features: ["Accessible", "Baby changing", "Free"],
+    lastVerifiedAt: "2026-08-19T20:15:00.000Z",
+    latitude: 34.050495,
+    longitude: -118.255075,
+    source: "demo",
+  },
+  {
+    id: "demo-little-tokyo",
+    name: "Little Tokyo Market Restroom",
+    address: "333 S Alameda St, Los Angeles, CA",
+    description:
+      "Single-stall restroom near the food court. Usually quiet before the lunch rush.",
+    directions: "Enter the market and turn left after the bakery counter.",
+    hours: "8:00 AM–9:00 PM",
+    openNow: true,
+    accessCode: "2026#",
+    accessInstructions: "Keypad code was community-verified yesterday. No purchase required.",
+    coverPhotoUrl:
+      "https://images.unsplash.com/photo-1564540583246-934409427776?auto=format&fit=crop&w=1200&q=85",
+    rating: 4.4,
+    cleanlinessRating: 4.5,
+    reviewCount: 54,
+    distanceMeters: 1200,
+    features: ["Gender neutral", "Single stall", "Code available"],
+    lastVerifiedAt: "2026-08-20T16:40:00.000Z",
+    latitude: 34.045184,
+    longitude: -118.238155,
+    source: "demo",
+  },
+  {
+    id: "demo-union-station",
+    name: "Union Station — East Portal",
+    address: "800 N Alameda St, Los Angeles, CA",
+    description:
+      "Large transit-station facilities with frequent cleaning and 24-hour station access.",
+    directions: "Follow East Portal signs; restrooms are across from the ticketing hall.",
+    hours: "Open 24 hours",
+    openNow: true,
+    accessCode: null,
+    accessInstructions: "No ticket or code required.",
+    coverPhotoUrl:
+      "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=1200&q=85",
+    rating: 4.1,
+    cleanlinessRating: 4.0,
+    reviewCount: 218,
+    distanceMeters: 1680,
+    features: ["Accessible", "Baby changing", "Free"],
+    lastVerifiedAt: "2026-08-21T08:10:00.000Z",
+    latitude: 34.056219,
+    longitude: -118.236502,
+    source: "demo",
+  },
+];

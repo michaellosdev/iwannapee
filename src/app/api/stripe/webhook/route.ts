@@ -1,0 +1,85 @@
+import { NextResponse } from "next/server";
+import Stripe from "stripe";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+async function activateCampaign(session: Stripe.Checkout.Session) {
+  if (session.payment_status !== "paid") return;
+  const campaignId = session.metadata?.campaign_id;
+  if (!campaignId) return;
+
+  const admin = createAdminClient();
+  if (!admin) throw new Error("Supabase secret key is not configured");
+
+  const { data: campaign, error } = await admin
+    .from("advertising_campaigns")
+    .select("id,duration_days,status,price_cents,placement_bid_cents,currency,stripe_checkout_session_id")
+    .eq("id", campaignId)
+    .single();
+  if (error || !campaign || campaign.status !== "pending_payment") return;
+
+  const expectedAmount = campaign.price_cents + campaign.placement_bid_cents;
+  if (
+    session.client_reference_id !== campaign.id
+    || session.id !== campaign.stripe_checkout_session_id
+    || session.amount_total !== expectedAmount
+    || session.currency !== campaign.currency
+  ) {
+    throw new Error("Paid Checkout Session does not match the campaign total");
+  }
+
+  const startsAt = new Date();
+  const endsAt = new Date(startsAt.getTime() + campaign.duration_days * 24 * 60 * 60 * 1000);
+  await admin
+    .from("advertising_campaigns")
+    .update({
+      status: "active",
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
+      stripe_checkout_session_id: session.id,
+      stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
+      updated_at: startsAt.toISOString(),
+    })
+    .eq("id", campaignId)
+    .eq("status", "pending_payment");
+}
+
+async function cancelPendingCampaign(session: Stripe.Checkout.Session) {
+  const campaignId = session.metadata?.campaign_id;
+  if (!campaignId) return;
+  const admin = createAdminClient();
+  if (!admin) throw new Error("Supabase secret key is not configured");
+  await admin
+    .from("advertising_campaigns")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("id", campaignId)
+    .eq("status", "pending_payment");
+}
+
+export async function POST(request: Request) {
+  const stripeSecret = process.env.STRIPE_SECRET_KEY;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const signature = request.headers.get("stripe-signature");
+  if (!stripeSecret || !webhookSecret || !signature) {
+    return NextResponse.json({ error: "Stripe webhook is not configured." }, { status: 503 });
+  }
+
+  const payload = await request.text();
+  const stripe = new Stripe(stripeSecret);
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+  } catch {
+    return NextResponse.json({ error: "Invalid webhook signature." }, { status: 400 });
+  }
+
+  try {
+    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
+      await activateCampaign(event.data.object);
+    } else if (event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed") {
+      await cancelPendingCampaign(event.data.object);
+    }
+    return NextResponse.json({ received: true });
+  } catch {
+    return NextResponse.json({ error: "Webhook processing failed." }, { status: 500 });
+  }
+}
