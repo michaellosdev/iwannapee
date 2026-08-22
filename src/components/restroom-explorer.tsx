@@ -47,6 +47,7 @@ import { CaptchaWidget } from "@/components/captcha-widget";
 import { openPrivacySettings } from "@/components/google-analytics";
 import { ReviewDialog } from "@/components/review-dialog";
 import { RestroomCommunity } from "@/components/restroom-community";
+import { SiteAttribution } from "@/components/site-attribution";
 import { SubmitRestroomDialog } from "@/components/submit-restroom-dialog";
 import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
 import { demoRestrooms, DEFAULT_LOCATION } from "@/lib/demo-restrooms";
@@ -937,10 +938,13 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
         <button className="button button-light" onClick={beginSubmission}>Add a restroom <ArrowRight size={18} /></button>
       </section>
 
-      <footer>
-        <a className="brand brand-footer" href="#top" aria-label="IWANNAPEE home"><span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-mark.png" width={512} /></span><span>IWANNAPEE</span></a>
-        <p>Everyone deserves dignified access to a restroom.</p>
-        <div><button onClick={openAccount}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></div>
+      <footer className="site-footer" id="site-footer">
+        <div className="site-footer-content">
+          <a className="brand brand-footer" href="#top" aria-label="IWANNAPEE home"><span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-mark.png" width={512} /></span><span>IWANNAPEE</span></a>
+          <p>Everyone deserves dignified access to a restroom.</p>
+          <nav className="site-footer-links" aria-label="Footer"><button onClick={openAccount}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></nav>
+        </div>
+        <SiteAttribution />
       </footer>
 
       {selected && (
