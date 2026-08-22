@@ -5,8 +5,9 @@ import { notFound } from "next/navigation";
 import { Accessibility, BadgeCheck, Building2, Clock3, ExternalLink, KeyRound, MapPin, Navigation, ShieldCheck, Star } from "lucide-react";
 import { RestroomShareTools } from "@/components/restroom-share-tools";
 import { businessPath, idFromPublicSlug, restroomPath } from "@/lib/public-links";
-import { getBusinessForRestroom, getPublicRestroom, getPublicReviews } from "@/lib/public-directory";
+import { getBusinessForRestroom, getPublicReviews, getRestroomListing } from "@/lib/public-directory";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +21,14 @@ function verifiedLabel(value: string | null) {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const id = idFromPublicSlug((await params).slug);
-  const restroom = id ? await getPublicRestroom(id) : null;
+  const restroom = id ? await getRestroomListing(id) : null;
   if (!restroom) return {};
   const path = restroomPath(restroom);
   const description = `${restroom.name} at ${restroom.address}. See hours, directions, accessibility, ratings, access details, and community verification.`;
   return {
     title: `${restroom.name} restroom`,
     description,
+    robots: restroom.status === "published" ? undefined : { index: false, follow: false },
     alternates: { canonical: path },
     openGraph: { title: `${restroom.name} restroom | ${SITE_NAME}`, description, url: path, images: restroom.cover_photo_url ? [restroom.cover_photo_url] : undefined },
     twitter: { card: restroom.cover_photo_url ? "summary_large_image" : "summary", title: `${restroom.name} restroom`, description },
@@ -36,8 +38,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function PublicRestroomPage({ params }: { params: Promise<{ slug: string }> }) {
   const id = idFromPublicSlug((await params).slug);
   if (!id) notFound();
+  const supabase = await createClient();
+  const { data: authData } = supabase
+    ? await supabase.auth.getUser()
+    : { data: { user: null } };
   const [restroom, business, reviews] = await Promise.all([
-    getPublicRestroom(id),
+    getRestroomListing(id, authData.user?.id),
     getBusinessForRestroom(id),
     getPublicReviews(id),
   ]);
@@ -96,12 +102,12 @@ export default async function PublicRestroomPage({ params }: { params: Promise<{
           <span><small>Verified business profile</small><strong>{business.business_name}</strong><p>{business.description || "This business has claimed and verified its restroom listing."}</p></span>
           <Link className="button button-secondary" href={businessPath(business)}>View business <ExternalLink size={16} /></Link>
         </section>
-      ) : (
+      ) : restroom.status === "published" ? (
         <section className="claim-business-card">
           <div><p className="eyebrow">Own or manage this location?</p><h2>Claim this restroom listing for free.</h2><p>After owner verification, manage your business profile, download a Community Verified QR badge, and receive one complimentary 7-day launch placement.</p></div>
           <Link className="button button-primary" href={`/business/claim/${restroom.id}`}>Claim my business</Link>
         </section>
-      )}
+      ) : null}
 
       <RestroomShareTools address={restroom.address} canonicalUrl={canonicalUrl} name={restroom.name} verifiedAt={verified ? restroom.community_verified_at : null} />
 

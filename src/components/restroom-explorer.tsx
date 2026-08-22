@@ -18,6 +18,7 @@ import {
   Crown,
   Crosshair,
   Droplets,
+  ExternalLink,
   Globe2,
   KeyRound,
   Gavel,
@@ -440,6 +441,14 @@ function RestroomDetail({
     onNotify("QR link copied");
   }
 
+  function showOffer() {
+    if (!restroom.promotion) return;
+    document.getElementById(`promotion-offer-${restroom.promotion.campaignId}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
   async function shareRestroom() {
     const publicId = restroom.promotion?.restroomId || restroom.id;
     const url = /^[0-9a-f-]{36}$/i.test(publicId) ? `${window.location.origin}${restroomPath({ id: publicId, name: restroom.name })}` : window.location.href;
@@ -482,17 +491,9 @@ function RestroomDetail({
             <Navigation size={17} /> Directions
           </a>
           {restroom.promotion ? (
-            (restroom.promotion.destinationUrl || restroom.promotion.qrTargetUrl) && (
-              <a
-                className="button button-secondary"
-                href={restroom.promotion.destinationUrl || restroom.promotion.qrTargetUrl || "#"}
-                onClick={() => restroom.promotion?.destinationUrl && onPromotionAction(restroom.promotion.campaignId, "website_click")}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <ArrowRight size={17} /> View offer
-              </a>
-            )
+            <button className="button button-secondary" onClick={showOffer} type="button">
+              <ArrowRight size={17} /> View offer
+            </button>
           ) : null}
           {(!restroom.promotion || restroom.promotion.restroomId) && (
             <button className="button button-secondary" onClick={onRate}><Star size={17} /> {restroom.promotion ? "Rate restroom" : "Rate it"}</button>
@@ -501,10 +502,21 @@ function RestroomDetail({
         </div>
 
         {restroom.promotion && (
-          <section className={`promotion-offer-card ${promotionColorClassName(restroom.promotion.colorKey)}`}>
+          <section className={`promotion-offer-card ${promotionColorClassName(restroom.promotion.colorKey)}`} id={`promotion-offer-${restroom.promotion.campaignId}`}>
             <div className="promotion-offer-label">{restroom.promotion.priorityPlacement ? <Gavel size={15} /> : <Megaphone size={15} />} {restroom.promotion.priorityPlacement ? "Priority sponsored offer" : "Sponsored local offer"}</div>
             <h3>{restroom.promotion.headline}</h3>
             <p>{restroom.promotion.offerText}</p>
+            {restroom.promotion.destinationUrl ? (
+              <a
+                className="button button-secondary"
+                href={restroom.promotion.destinationUrl}
+                onClick={() => onPromotionAction(restroom.promotion!.campaignId, "website_click")}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Visit business website <ExternalLink size={15} />
+              </a>
+            ) : null}
             {(restroom.promotion.promoCode || restroom.promotion.qrTargetUrl) && (
               <div className="promotion-redemption">
                 {restroom.promotion.promoCode && (

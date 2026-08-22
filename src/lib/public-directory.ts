@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export type PublicRestroom = {
   id: string;
+  status: string;
   name: string;
   address: string;
   description: string | null;
@@ -78,7 +79,7 @@ export const DIRECTORY_CITIES: CityDirectory[] = [
   { slug: "paris-fr", name: "Paris", region: "France", description: "Find public toilets in Paris with useful directions and community details.", bounds: { west: 2.22, south: 48.81, east: 2.47, north: 48.91 } },
 ];
 
-const restroomColumns = "id,name,address,description,directions,hours,hours_schedule_status,weekly_hours,timezone,latitude,longitude,access_code,access_instructions,cover_photo_url,features,rating,cleanliness_rating,review_count,data_source,source_url,community_verified_at,community_verification_count,community_not_found_count,created_at,updated_at";
+const restroomColumns = "id,status,name,address,description,directions,hours,hours_schedule_status,weekly_hours,timezone,latitude,longitude,access_code,access_instructions,cover_photo_url,features,rating,cleanliness_rating,review_count,data_source,source_url,community_verified_at,community_verification_count,community_not_found_count,created_at,updated_at";
 const businessColumns = "id,restroom_id,business_name,description,profile_image_url,cover_image_url,website_url,public_email,phone,instagram_url,facebook_url,tiktok_url,promotion_headline,promotion_offer_text,promotion_code,verified_at,updated_at";
 
 export const getPublicRestroom = cache(async (id: string) => {
@@ -88,6 +89,34 @@ export const getPublicRestroom = cache(async (id: string) => {
   if (error) throw error;
   return data as PublicRestroom | null;
 });
+
+export async function getRestroomListing(id: string, viewerUserId?: string | null) {
+  const admin = createAdminClient();
+  if (!admin) return null;
+
+  const { data, error } = await admin.from("restrooms").select(restroomColumns).eq("id", id).maybeSingle();
+  if (error) throw error;
+  const restroom = data as PublicRestroom | null;
+  if (!restroom) return null;
+  if (restroom.status === "published") return restroom;
+  if (restroom.status !== "pending") return null;
+
+  const now = new Date().toISOString();
+  const { data: campaigns, error: campaignError } = await admin
+    .from("advertising_campaigns")
+    .select("created_by,is_test")
+    .eq("restroom_id", id)
+    .eq("status", "active")
+    .is("deleted_at", null)
+    .lte("starts_at", now)
+    .gt("ends_at", now);
+  if (campaignError) throw campaignError;
+
+  const viewable = (campaigns || []).some((campaign) =>
+    !campaign.is_test || Boolean(viewerUserId && campaign.created_by === viewerUserId)
+  );
+  return viewable ? restroom : null;
+}
 
 export const getBusinessForRestroom = cache(async (restroomId: string) => {
   const admin = createAdminClient();

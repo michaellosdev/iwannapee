@@ -1573,6 +1573,10 @@ a {
   margin: 0;
 }
 
+.promotion-offer-card > .button {
+  margin-top: 14px;
+}
+
 .promotion-redemption {
   align-items: center;
   display: flex;
