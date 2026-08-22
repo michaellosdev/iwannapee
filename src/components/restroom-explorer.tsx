@@ -206,22 +206,27 @@ function FeatureIcon({ feature }: { feature: RestroomFeature }) {
 
 function RestroomCard({ restroom, onSelect }: { restroom: Restroom; onSelect: () => void }) {
   const promotion = restroom.promotion;
+  const coverPhotoUrl = restroom.coverPhotoUrl?.trim() || null;
+  const cardClassName = [
+    "restroom-card",
+    promotion ? "promoted-restroom-card" : "",
+    coverPhotoUrl ? "" : "restroom-card-imageless",
+  ].filter(Boolean).join(" ");
+  const statusClassName = promotion ? "status-badge promoted" : restroom.openNow ? "status-badge open" : restroom.openNow === null ? "status-badge unknown" : "status-badge";
+  const statusLabel = promotion ? "Sponsored" : restroom.openNow === null ? "Hours?" : restroom.openNow ? "Open" : "Closed";
 
   return (
-    <article className={promotion ? "restroom-card promoted-restroom-card" : "restroom-card"} onClick={onSelect}>
+    <article className={cardClassName} onClick={onSelect}>
       <button className="card-click-target" aria-label={`View ${restroom.name}`} onClick={onSelect} />
-      <div className="restroom-photo">
-        {restroom.coverPhotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img alt={`Restroom at ${restroom.name}`} src={restroom.coverPhotoUrl} />
-        ) : (
-          <div className="photo-placeholder"><Toilet size={30} /></div>
-        )}
-        <span className={promotion ? "status-badge promoted" : restroom.openNow ? "status-badge open" : restroom.openNow === null ? "status-badge unknown" : "status-badge"}>
-          {promotion ? "Sponsored" : restroom.openNow === null ? "Hours?" : restroom.openNow ? "Open" : "Closed"}
-        </span>
-      </div>
+      {coverPhotoUrl && (
+        <div className="restroom-photo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt={`Restroom at ${restroom.name}`} src={coverPhotoUrl} />
+          <span className={statusClassName}>{statusLabel}</span>
+        </div>
+      )}
       <div className="restroom-card-body">
+        {!coverPhotoUrl && <span className={`${statusClassName} status-badge-inline`}>{statusLabel}</span>}
         <div className="card-heading-row">
           <div>
             <h3>{restroom.name}</h3>
@@ -259,19 +264,27 @@ function RestroomCard({ restroom, onSelect }: { restroom: Restroom; onSelect: ()
 }
 
 function WorldRankingCard({ restroom, onSelect }: { restroom: RankedRestroom; onSelect: () => void }) {
+  const coverPhotoUrl = restroom.coverPhotoUrl?.trim() || null;
+
   return (
-    <button className={`world-ranking-card world-rank-${Math.min(restroom.rankPosition, 3)}`} onClick={onSelect} type="button">
-      <div className="world-ranking-photo">
-        {restroom.coverPhotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img alt={`Restroom at ${restroom.name}`} src={restroom.coverPhotoUrl} />
-        ) : <div className="photo-placeholder"><Toilet size={32} /></div>}
-        <span className="world-rank-badge">
-          {restroom.rankPosition === 1 ? <Crown size={15} /> : <Trophy size={14} />}
-          #{restroom.rankPosition}
-        </span>
-      </div>
+    <button className={`world-ranking-card world-rank-${Math.min(restroom.rankPosition, 3)}${coverPhotoUrl ? "" : " world-ranking-card-imageless"}`} onClick={onSelect} type="button">
+      {coverPhotoUrl && (
+        <div className="world-ranking-photo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt={`Restroom at ${restroom.name}`} src={coverPhotoUrl} />
+          <span className="world-rank-badge">
+            {restroom.rankPosition === 1 ? <Crown size={15} /> : <Trophy size={14} />}
+            #{restroom.rankPosition}
+          </span>
+        </div>
+      )}
       <div className="world-ranking-body">
+        {!coverPhotoUrl && (
+          <span className="world-rank-badge world-rank-badge-inline">
+            {restroom.rankPosition === 1 ? <Crown size={15} /> : <Trophy size={14} />}
+            #{restroom.rankPosition}
+          </span>
+        )}
         <div className="world-ranking-title">
           <div><h3>{restroom.name}</h3><p><MapPin size={13} /> {restroom.address}</p></div>
           <span><Star fill="currentColor" size={14} /> {restroom.rating.toFixed(1)}</span>

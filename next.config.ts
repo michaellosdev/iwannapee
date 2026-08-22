@@ -2,20 +2,27 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const isDevelopment = process.env.NODE_ENV === "development";
+const defaultTileUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-function urlOrigin(value?: string) {
+function cspUrlSource(value?: string) {
   if (!value) return null;
   try {
-    const normalized = value.replace(/\{[^}]+\}/g, "a");
-    return new URL(normalized).origin;
+    const subdomainToken = "tile-subdomain";
+    const normalized = value
+      .replace(/\{s\}/g, subdomainToken)
+      .replace(/\{[^}]+\}/g, "0");
+    const parsed = new URL(normalized);
+    const hostname = parsed.hostname.replaceAll(subdomainToken, "*");
+    return `${parsed.protocol}//${hostname}${parsed.port ? `:${parsed.port}` : ""}`;
   } catch {
     return null;
   }
 }
 
-const tileOrigin = urlOrigin(process.env.NEXT_PUBLIC_MAP_TILE_URL || (isDevelopment ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" : undefined));
-const supabaseOrigin = urlOrigin(process.env.NEXT_PUBLIC_SUPABASE_URL);
-const extraImageSources = [tileOrigin, supabaseOrigin].filter((value): value is string => Boolean(value));
+const tileOrigin = cspUrlSource(process.env.NEXT_PUBLIC_MAP_TILE_URL || defaultTileUrl);
+const defaultTileOrigin = cspUrlSource(defaultTileUrl);
+const supabaseOrigin = cspUrlSource(process.env.NEXT_PUBLIC_SUPABASE_URL);
+const extraImageSources = Array.from(new Set([tileOrigin, defaultTileOrigin, supabaseOrigin].filter((value): value is string => Boolean(value))));
 const extraConnectSources = [supabaseOrigin].filter((value): value is string => Boolean(value));
 
 const contentSecurityPolicy = [

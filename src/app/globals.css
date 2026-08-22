@@ -594,6 +594,15 @@ a {
   top: 14px;
 }
 
+.world-rank-badge-inline {
+  border: 0;
+  left: auto;
+  margin-bottom: 14px;
+  position: static;
+  top: auto;
+  width: max-content;
+}
+
 .world-rank-1 .world-rank-badge {
   background: #f1c93e;
   color: #4d3c00;
@@ -893,6 +902,11 @@ a {
   transform: translateY(-1px);
 }
 
+.restroom-card.restroom-card-imageless {
+  grid-template-columns: 1fr;
+  min-height: 0;
+}
+
 .card-click-target {
   background: transparent;
   border: 0;
@@ -944,6 +958,14 @@ a {
 
 .status-badge.unknown {
   background: #725f38;
+}
+
+.status-badge-inline {
+  align-self: flex-start;
+  left: auto;
+  margin-bottom: 11px;
+  position: static;
+  top: auto;
 }
 
 .restroom-card-body {
@@ -1301,6 +1323,10 @@ a {
 
 .list-grid .restroom-card {
   min-height: 220px;
+}
+
+.list-grid .restroom-card.restroom-card-imageless {
+  min-height: 0;
 }
 
 .empty-results {
@@ -3572,6 +3598,11 @@ footer button {
   .restroom-card {
     grid-template-columns: 125px 1fr;
     min-height: 180px;
+  }
+
+  .restroom-card.restroom-card-imageless {
+    grid-template-columns: 1fr;
+    min-height: 0;
   }
 
   .card-features span:nth-child(n + 3) {

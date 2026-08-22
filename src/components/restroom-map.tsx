@@ -12,6 +12,9 @@ type RestroomMapProps = {
   onSelect: (restroom: Restroom) => void;
 };
 
+const DEFAULT_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const DEFAULT_TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
 function MapMotion({ center, selected }: { center: Coordinates; selected: Restroom | undefined }) {
   const map = useMap();
 
@@ -48,10 +51,8 @@ export default function RestroomMap({ center, restrooms, selectedId, onSelect }:
     () => restrooms.find((restroom) => restroom.id === selectedId),
     [restrooms, selectedId],
   );
-  const tileUrl = process.env.NEXT_PUBLIC_MAP_TILE_URL
-    || (process.env.NODE_ENV === "development" ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" : "");
-  const tileAttribution = process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION
-    || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  const tileUrl = process.env.NEXT_PUBLIC_MAP_TILE_URL?.trim() || DEFAULT_TILE_URL;
+  const tileAttribution = process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION?.trim() || DEFAULT_TILE_ATTRIBUTION;
 
   return (
     <MapContainer
@@ -61,7 +62,7 @@ export default function RestroomMap({ center, restrooms, selectedId, onSelect }:
       zoom={14}
       zoomControl={false}
     >
-      {tileUrl && <TileLayer attribution={tileAttribution} url={tileUrl} />}
+      <TileLayer attribution={tileAttribution} url={tileUrl} />
       <Circle
         center={[center.latitude, center.longitude]}
         pathOptions={{ color: "#2f63ff", fillColor: "#2f63ff", fillOpacity: 0.08, weight: 1 }}
