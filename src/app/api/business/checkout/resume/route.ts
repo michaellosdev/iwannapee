@@ -3,7 +3,10 @@ import Stripe from "stripe";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 import {
   checkoutSessionMatchesCampaign,
+  checkoutSessionMatchesSite,
   createPromotionCheckoutSession,
+  promotionCheckoutConfigurationError,
+  promotionCheckoutSiteUrl,
   type PromotionCheckoutCampaign,
 } from "@/lib/stripe/promotion-checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,13 +22,6 @@ type PendingCampaign = PromotionCheckoutCampaign & {
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function siteUrlFor(request: Request) {
-  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  return configuredSiteUrl?.startsWith("http")
-    ? configuredSiteUrl.replace(/\/$/, "")
-    : new URL(request.url).origin;
-}
 
 function successUrl(siteUrl: string, sessionId: string) {
   return `${siteUrl}/business/success?session_id=${encodeURIComponent(sessionId)}`;
@@ -67,6 +63,12 @@ export async function POST(request: Request) {
   const stripeSecret = process.env.STRIPE_SECRET_KEY;
   const admin = createAdminClient();
   if (!stripeSecret) return NextResponse.json({ error: "Stripe Checkout is not configured yet." }, { status: 503 });
+  const siteUrl = promotionCheckoutSiteUrl(request.url);
+  const checkoutConfigurationError = promotionCheckoutConfigurationError(stripeSecret, siteUrl);
+  if (checkoutConfigurationError) {
+    console.error("Promotion checkout resume configuration is unsafe", { error: checkoutConfigurationError });
+    return NextResponse.json({ error: "Live payment checkout is temporarily unavailable." }, { status: 503 });
+  }
   if (!admin) return NextResponse.json({ error: "Supabase server access is not configured yet." }, { status: 503 });
 
   let campaignId: string;
@@ -93,18 +95,23 @@ export async function POST(request: Request) {
   }
 
   const stripe = new Stripe(stripeSecret, { maxNetworkRetries: 2 });
-  const siteUrl = siteUrlFor(request);
 
   try {
     const attachedSession = await retrieveAttachedSession(stripe, campaign.stripe_checkout_session_id);
     if (attachedSession && !checkoutSessionMatchesCampaign(attachedSession, campaign)) {
       return NextResponse.json({ error: "The saved checkout does not match this promotion." }, { status: 409 });
     }
-    if (attachedSession?.status === "open" && attachedSession.url) {
+    const attachedSessionMatchesSite = attachedSession
+      ? checkoutSessionMatchesSite(attachedSession, siteUrl, stripeSecret)
+      : false;
+    if (attachedSession?.status === "open" && attachedSession.url && attachedSessionMatchesSite) {
       return NextResponse.json({ checkoutUrl: attachedSession.url });
     }
-    if (attachedSession?.status === "complete") {
+    if (attachedSession?.status === "complete" && attachedSessionMatchesSite) {
       return NextResponse.json({ checkoutUrl: successUrl(siteUrl, attachedSession.id) });
+    }
+    if (attachedSession?.status === "open") {
+      await stripe.checkout.sessions.expire(attachedSession.id);
     }
 
     const priorSessionKey = campaign.stripe_checkout_session_id || "missing";
@@ -142,7 +149,11 @@ export async function POST(request: Request) {
     }
     if (latest?.status === "pending_payment" && latest.stripe_checkout_session_id) {
       const latestSession = await retrieveAttachedSession(stripe, latest.stripe_checkout_session_id);
-      if (latestSession && checkoutSessionMatchesCampaign(latestSession, campaign)) {
+      if (
+        latestSession
+        && checkoutSessionMatchesCampaign(latestSession, campaign)
+        && checkoutSessionMatchesSite(latestSession, siteUrl, stripeSecret)
+      ) {
         if (latestSession.status === "open" && latestSession.url) {
           return NextResponse.json({ checkoutUrl: latestSession.url });
         }

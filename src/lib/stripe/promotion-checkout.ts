@@ -1,6 +1,7 @@
 import "server-only";
 
 import Stripe from "stripe";
+import { SITE_URL } from "@/lib/site";
 
 export type PromotionCheckoutCampaign = {
   id: string;
@@ -17,6 +18,24 @@ export function promotionCheckoutTotal(campaign: PromotionCheckoutCampaign) {
   return campaign.price_cents + campaign.placement_bid_cents + campaign.support_amount_cents;
 }
 
+export function promotionCheckoutSiteUrl(requestUrl: string) {
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  return configuredSiteUrl?.startsWith("http")
+    ? configuredSiteUrl.replace(/\/$/, "")
+    : new URL(requestUrl).origin;
+}
+
+export function stripeKeyIsLive(secret: string) {
+  return secret.startsWith("sk_live_") || secret.startsWith("rk_live_");
+}
+
+export function promotionCheckoutConfigurationError(secret: string, siteUrl: string) {
+  if (process.env.NODE_ENV !== "production" && process.env.VERCEL_ENV !== "production") return null;
+  if (!stripeKeyIsLive(secret)) return "Production checkout requires a live Stripe key.";
+  if (siteUrl !== SITE_URL) return `Production checkout requires NEXT_PUBLIC_SITE_URL=${SITE_URL}.`;
+  return null;
+}
+
 export function checkoutSessionMatchesCampaign(
   session: Stripe.Checkout.Session,
   campaign: PromotionCheckoutCampaign,
@@ -31,6 +50,16 @@ export function checkoutSessionMatchesCampaign(
     && session.metadata?.total_price_cents === String(total)
     && session.amount_total === total
     && session.currency === campaign.currency;
+}
+
+export function checkoutSessionMatchesSite(
+  session: Stripe.Checkout.Session,
+  siteUrl: string,
+  stripeSecret: string,
+) {
+  return session.livemode === stripeKeyIsLive(stripeSecret)
+    && session.success_url === `${siteUrl}/business/success?session_id={CHECKOUT_SESSION_ID}`
+    && session.cancel_url === `${siteUrl}/business`;
 }
 
 export async function createPromotionCheckoutSession({

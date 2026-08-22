@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { stripeKeyIsLive } from "@/lib/stripe/promotion-checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 async function activateCampaign(session: Stripe.Checkout.Session) {
@@ -155,6 +156,9 @@ export async function POST(request: Request) {
   if (!stripeSecret || !webhookSecret || !signature) {
     return NextResponse.json({ error: "Stripe webhook is not configured." }, { status: 503 });
   }
+  if ((process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") && !stripeKeyIsLive(stripeSecret)) {
+    return NextResponse.json({ error: "Live Stripe webhook is not configured." }, { status: 503 });
+  }
 
   const payload = await request.text();
   const stripe = new Stripe(stripeSecret, { maxNetworkRetries: 2 });
@@ -163,6 +167,9 @@ export async function POST(request: Request) {
     event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
   } catch {
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 400 });
+  }
+  if ((process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") && !event.livemode) {
+    return NextResponse.json({ error: "Test-mode Stripe events are not accepted in production." }, { status: 400 });
   }
 
   try {

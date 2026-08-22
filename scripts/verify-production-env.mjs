@@ -82,8 +82,8 @@ if (
   errors.push("SUPABASE_SECRET_KEY does not look like a Supabase secret/service-role key.");
 }
 
-if (!value("STRIPE_SECRET_KEY").startsWith("sk_live_")) {
-  errors.push("STRIPE_SECRET_KEY must be a live-mode key for the production deployment.");
+if (!value("STRIPE_SECRET_KEY").startsWith("sk_live_") && !value("STRIPE_SECRET_KEY").startsWith("rk_live_")) {
+  errors.push("STRIPE_SECRET_KEY must be a live-mode secret or restricted key for the production deployment.");
 }
 
 if (!value("STRIPE_WEBHOOK_SECRET").startsWith("whsec_")) {

@@ -5,7 +5,11 @@ import { formatHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } fro
 import { captchaRequiredResponse, hasCaptchaSession } from "@/lib/security/captcha";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 import { timeZoneAt } from "@/lib/server/timezone";
-import { createPromotionCheckoutSession } from "@/lib/stripe/promotion-checkout";
+import {
+  createPromotionCheckoutSession,
+  promotionCheckoutConfigurationError,
+  promotionCheckoutSiteUrl,
+} from "@/lib/stripe/promotion-checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -68,6 +72,12 @@ export async function POST(request: Request) {
 
   const stripeSecret = process.env.STRIPE_SECRET_KEY;
   if (!stripeSecret) return NextResponse.json({ error: "Stripe Checkout is not configured yet." }, { status: 503 });
+  const siteUrl = promotionCheckoutSiteUrl(request.url);
+  const checkoutConfigurationError = promotionCheckoutConfigurationError(stripeSecret, siteUrl);
+  if (checkoutConfigurationError) {
+    console.error("Advertising checkout configuration is unsafe", { error: checkoutConfigurationError });
+    return NextResponse.json({ error: "Live payment checkout is temporarily unavailable." }, { status: 503 });
+  }
   const admin = createAdminClient();
   if (!admin) return NextResponse.json({ error: "Supabase server access is not configured yet." }, { status: 503 });
 
@@ -134,8 +144,6 @@ export async function POST(request: Request) {
     if (insertError || !createdCampaign) throw new Error("Could not save campaign");
 
     const stripe = new Stripe(stripeSecret, { maxNetworkRetries: 2 });
-    const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    const siteUrl = configuredSiteUrl?.startsWith("http") ? configuredSiteUrl.replace(/\/$/, "") : new URL(request.url).origin;
 
     try {
       const session = await createPromotionCheckoutSession({
