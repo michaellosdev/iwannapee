@@ -48,7 +48,10 @@ export function checkoutSessionMatchesCampaign(
     && session.metadata?.placement_bid_cents === String(campaign.placement_bid_cents)
     && session.metadata?.support_amount_cents === String(campaign.support_amount_cents)
     && session.metadata?.total_price_cents === String(total)
-    && session.amount_total === total
+    && session.amount_subtotal === total
+    && session.amount_total !== null
+    && session.amount_total >= 0
+    && session.amount_total <= total
     && session.currency === campaign.currency;
 }
 
@@ -58,6 +61,7 @@ export function checkoutSessionMatchesSite(
   stripeSecret: string,
 ) {
   return session.livemode === stripeKeyIsLive(stripeSecret)
+    && session.allow_promotion_codes === true
     && session.success_url === `${siteUrl}/business/success?session_id={CHECKOUT_SESSION_ID}`
     && session.cancel_url === `${siteUrl}/business`;
 }
@@ -123,6 +127,7 @@ export async function createPromotionCheckoutSession({
       integration_identifier: process.env.STRIPE_INTEGRATION_IDENTIFIER || "iwannapee_qnrvkzpt",
       client_reference_id: campaign.id,
       customer_email: customerEmail,
+      allow_promotion_codes: true,
       success_url: `${siteUrl}/business/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/business`,
       line_items: lineItems,

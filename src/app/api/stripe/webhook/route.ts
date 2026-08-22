@@ -22,7 +22,10 @@ async function activateCampaign(session: Stripe.Checkout.Session) {
   if (
     session.client_reference_id !== campaign.id
     || session.id !== campaign.stripe_checkout_session_id
-    || session.amount_total !== expectedAmount
+    || session.amount_subtotal !== expectedAmount
+    || session.amount_total === null
+    || session.amount_total < 0
+    || session.amount_total > expectedAmount
     || session.currency !== campaign.currency
     || session.metadata?.user_id !== campaign.created_by
     || session.metadata?.placement_bid_cents !== String(campaign.placement_bid_cents)
