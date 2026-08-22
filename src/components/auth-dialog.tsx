@@ -75,7 +75,7 @@ export function AuthDialog({ open, user, returnTo = "/?submit=1", onClose, onSig
             <p className="eyebrow">Your account</p>
             <h2 id="auth-title">You’re signed in.</h2>
             <p className="dialog-copy">Posting as <strong>{user.email}</strong></p>
-            <a className="button button-primary button-full" href="/business">View promotion analytics</a>
+            <a className="button button-primary button-full account-analytics-link" href="/business">View promotion analytics</a>
             <button className="button button-secondary button-full" onClick={signOut}>Sign out</button>
           </>
         ) : status === "sent" ? (

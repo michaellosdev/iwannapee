@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { BadgeCheck, Camera, Check, CircleHelp, Droplets, ExternalLink, Images, Star, X } from "lucide-react";
 import { CaptchaWidget } from "@/components/captcha-widget";
+import { CommunityNotes, type CommunityNote } from "@/components/community-notes";
 import { PhotoUploadError, uploadPhotos, validatePhotoFiles } from "@/lib/photo-upload";
 import type { Restroom } from "@/types/restroom";
 
@@ -36,6 +37,7 @@ type CommunityDetails = {
   };
   photos: CommunityPhoto[];
   reviews: CommunityReview[];
+  notes: CommunityNote[];
 };
 
 function relativeTime(value: string) {
@@ -285,6 +287,17 @@ export function RestroomCommunity({
         <button className="community-read-reviews" onClick={() => setExpandedReviews((current) => !current)} type="button">
           {expandedReviews ? "Show one review" : `Read all ${details?.reviews.length} reviews`}
         </button>
+      )}
+
+      {canLoad && (
+        <CommunityNotes
+          notes={details?.notes || []}
+          onNeedsAuth={onNeedsAuth}
+          onNotify={onNotify}
+          onReload={loadDetails}
+          restroomId={restroomId}
+          user={user}
+        />
       )}
     </section>
   );

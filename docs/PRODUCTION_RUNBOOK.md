@@ -1,7 +1,7 @@
 # IWANNAPEE production runbook
 
 This is the launch order for `https://www.iwannapee.lol`. Do not deploy the
-protected mutation routes before migrations `005` through `007` are available: the
+protected mutation routes before migrations `005` through `010` are available: the
 routes deliberately fail closed when durable request limiting is unavailable.
 
 ## 1. Required production variables
@@ -48,15 +48,16 @@ Never add `SUPABASE_DB_URL`, restore-test credentials, or
 
 ## 2. Supabase
 
-1. Run migrations `001` through `007` in filename order.
+1. Run migrations `001` through `010` in filename order.
 2. Confirm `request_rate_limits`, `stripe_webhook_events`,
-   `restroom_source_records`, and the three Storage buckets exist.
+   `restroom_source_records`, `community_photos`, `community_notes`,
+   `community_note_votes`, and the three Storage buckets exist.
 3. Set the owner profile role to `owner`. `OWNER_EMAILS` remains the independent
    server-side owner allowlist.
 4. Set Authentication Site URL to `https://www.iwannapee.lol` and allow
    `https://www.iwannapee.lol/auth/callback`.
 5. Smoke-test a real magic link, owner `/admin`, a pending submission, approval,
-   a review, and a signed photo upload.
+   a review, a signed photo upload and moderation, and a community note/reply/vote.
 
 ## 3. Initial restroom import
 

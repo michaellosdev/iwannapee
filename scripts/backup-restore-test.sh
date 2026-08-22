@@ -63,7 +63,12 @@ counts_sql="select jsonb_build_object(
   'advertising_campaigns', (select count(*) from public.advertising_campaigns),
   'request_rate_limits', (select count(*) from public.request_rate_limits),
   'stripe_webhook_events', (select count(*) from public.stripe_webhook_events),
-  'restroom_source_records', (select count(*) from public.restroom_source_records)
+  'restroom_source_records', (select count(*) from public.restroom_source_records),
+  'promotion_activity_events', (select count(*) from public.promotion_activity_events),
+  'restroom_verifications', (select count(*) from public.restroom_verifications),
+  'community_photos', (select count(*) from public.community_photos),
+  'community_notes', (select count(*) from public.community_notes),
+  'community_note_votes', (select count(*) from public.community_note_votes)
 )::text;"
 source_counts="$(psql "$source_database_url" -X -A -t -v ON_ERROR_STOP=1 -c "$counts_sql")"
 restore_counts="$(psql "$restore_database_url" -X -A -t -v ON_ERROR_STOP=1 -c "$counts_sql")"

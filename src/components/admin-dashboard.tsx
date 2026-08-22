@@ -2,21 +2,48 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, FlaskConical, Gavel, Images, Megaphone, ShieldCheck, Trash2, UserCog, X } from "lucide-react";
+import { Check, Eye, FlaskConical, Gavel, Images, MapPin, MessageCircle, Megaphone, ShieldCheck, Trash2, UserCog, X } from "lucide-react";
+
+type AdminRestroom = {
+  id: string;
+  name: string;
+  address: string;
+  description: string | null;
+  directions: string | null;
+  hours: string | null;
+  hours_schedule_status: string;
+  timezone: string | null;
+  weekly_hours: unknown;
+  latitude: number;
+  longitude: number;
+  is_open_now: boolean | null;
+  access_code: string | null;
+  access_instructions: string | null;
+  cover_photo_url: string | null;
+  features: string[];
+  created_by: string | null;
+  created_at: string;
+  status: string;
+  data_source: string;
+  source_url: string | null;
+  last_verified_at: string;
+};
 
 type DashboardData = {
   profiles: Array<{ id: string; display_name: string | null; email: string; role: string; is_moderator: boolean; created_at: string }>;
-  restrooms: Array<{ id: string; name: string; address: string; hours: string | null; directions: string | null; access_code: string | null; cover_photo_url: string | null; created_by: string | null; created_at: string; status: string }>;
+  restrooms: AdminRestroom[];
   updates: Array<{ id: string; restroom_id: string; restroom_name: string; update_type: string; proposed_value: string; created_at: string }>;
   reports: Array<{ id: string; restroom_id: string; restroom_name: string; reason: string; details: string | null; created_at: string }>;
   campaigns: Array<{ id: string; business_name: string; restroom_name: string; address: string; headline: string; offer_text: string; placement_bid_cents: number; status: string; is_test: boolean; starts_at: string | null; ends_at: string | null; created_at: string }>;
   photos: Array<{ id: string; restroom_id: string; restroom_name: string; review_id: string | null; user_id: string; contributor: string; public_url: string; caption: string | null; status: string; created_at: string }>;
+  notes: Array<{ id: string; restroom_id: string; restroom_name: string; parent_id: string | null; user_id: string; contributor: string; body: string; status: string; upvote_count: number; downvote_count: number; created_at: string }>;
 };
 
 export function AdminDashboard({ currentUserId, initialData }: { currentUserId: string; initialData: DashboardData }) {
   const router = useRouter();
   const [working, setWorking] = useState("");
   const [notice, setNotice] = useState("");
+  const [selectedRestroom, setSelectedRestroom] = useState<AdminRestroom | null>(null);
   const [sample, setSample] = useState({
     businessName: "IWANNAPEE Test Cafe",
     restroomName: "Sample sponsored restroom",
@@ -58,13 +85,15 @@ export function AdminDashboard({ currentUserId, initialData }: { currentUserId: 
         <div className="admin-grid">
           {initialData.restrooms.map((restroom) => (
             <article className="admin-card" key={restroom.id}>
-              {restroom.cover_photo_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img alt="Submitted restroom" src={restroom.cover_photo_url} />
-              )}
-              <small>{new Date(restroom.created_at).toLocaleString()}</small>
-              <h3>{restroom.name}</h3><p>{restroom.address}</p>
-              <dl><div><dt>Hours</dt><dd>{restroom.hours || "Not supplied"}</dd></div><div><dt>Directions</dt><dd>{restroom.directions || "Not supplied"}</dd></div><div><dt>Code</dt><dd>{restroom.access_code || "None"}</dd></div></dl>
+              <button className="admin-card-open" onClick={() => setSelectedRestroom(restroom)} type="button">
+                {restroom.cover_photo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt="Submitted restroom" src={restroom.cover_photo_url} />
+                )}
+                <small>{new Date(restroom.created_at).toLocaleString()}</small>
+                <h3>{restroom.name}</h3><p>{restroom.address}</p>
+                <span><Eye size={14} /> View all details</span>
+              </button>
               <div className="admin-actions">
                 <button disabled={Boolean(working)} onClick={() => runAction("restroom_status", { id: restroom.id, status: "published" })}><Check size={15} /> Approve</button>
                 <button disabled={Boolean(working)} onClick={() => runAction("restroom_status", { id: restroom.id, status: "rejected" })}><X size={15} /> Reject</button>
@@ -77,6 +106,7 @@ export function AdminDashboard({ currentUserId, initialData }: { currentUserId: 
 
       <section className="admin-section">
         <div className="admin-section-heading"><div><Images size={20} /><h2>Community photos</h2></div><span>{initialData.photos.length} pending</span></div>
+        <p className="admin-section-copy">Restroom and review photos stay hidden from the public until you publish them here. Rejected files are removed from Storage.</p>
         <div className="admin-grid">
           {initialData.photos.map((photo) => (
             <article className="admin-card" key={photo.id}>
@@ -93,6 +123,26 @@ export function AdminDashboard({ currentUserId, initialData }: { currentUserId: 
             </article>
           ))}
           {initialData.photos.length === 0 && <p className="admin-empty">No community photos are waiting.</p>}
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <div className="admin-section-heading"><div><MessageCircle size={20} /><h2>Community notes</h2></div><span>{initialData.notes.length} recent</span></div>
+        <div className="admin-grid admin-grid-compact">
+          {initialData.notes.map((note) => (
+            <article className="admin-card" key={note.id}>
+              <small>{note.parent_id ? "Reply" : "Note"} · {note.status} · {new Date(note.created_at).toLocaleString()}</small>
+              <h3>{note.restroom_name}</h3>
+              <p>{note.body}</p>
+              <dl><div><dt>Contributor</dt><dd>{note.contributor}</dd></div><div><dt>Votes</dt><dd>{note.upvote_count} up · {note.downvote_count} down</dd></div></dl>
+              <div className="admin-actions">
+                {note.status === "published"
+                  ? <button disabled={Boolean(working)} onClick={() => runAction("community_note_status", { id: note.id, status: "hidden" })}><X size={15} /> Hide</button>
+                  : <button className="admin-restore-action" disabled={Boolean(working)} onClick={() => runAction("community_note_status", { id: note.id, status: "published" })}><Check size={15} /> Restore</button>}
+              </div>
+            </article>
+          ))}
+          {initialData.notes.length === 0 && <p className="admin-empty">No community notes have been posted.</p>}
         </div>
       </section>
 
@@ -139,6 +189,40 @@ export function AdminDashboard({ currentUserId, initialData }: { currentUserId: 
           ))}
         </div>
       </section>
+
+      {selectedRestroom && (
+        <div className="dialog-backdrop" onMouseDown={() => setSelectedRestroom(null)} role="presentation">
+          <section aria-labelledby="admin-restroom-title" aria-modal="true" className="dialog-card dialog-card-wide admin-restroom-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+            <button aria-label="Close restroom details" className="icon-button dialog-close" onClick={() => setSelectedRestroom(null)}><X size={20} /></button>
+            {selectedRestroom.cover_photo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img alt={`Submitted photo for ${selectedRestroom.name}`} className="admin-restroom-modal-photo" src={selectedRestroom.cover_photo_url} />
+            )}
+            <p className="eyebrow">Pending restroom submission</p>
+            <h2 id="admin-restroom-title">{selectedRestroom.name}</h2>
+            <p className="admin-restroom-modal-address"><MapPin size={15} /> {selectedRestroom.address}</p>
+            <dl className="admin-restroom-detail-list">
+              <div><dt>Description</dt><dd>{selectedRestroom.description || "Not supplied"}</dd></div>
+              <div><dt>Directions</dt><dd>{selectedRestroom.directions || "Not supplied"}</dd></div>
+              <div><dt>Hours</dt><dd>{selectedRestroom.hours || "Not supplied"}</dd></div>
+              <div><dt>Schedule status</dt><dd>{selectedRestroom.hours_schedule_status.replaceAll("_", " ")}{selectedRestroom.timezone ? ` · ${selectedRestroom.timezone}` : ""}</dd></div>
+              <div><dt>Access code</dt><dd>{selectedRestroom.access_code || "None"}</dd></div>
+              <div><dt>Access instructions</dt><dd>{selectedRestroom.access_instructions || "Not supplied"}</dd></div>
+              <div><dt>Coordinates</dt><dd>{selectedRestroom.latitude.toFixed(6)}, {selectedRestroom.longitude.toFixed(6)} · <a href={`https://www.google.com/maps/search/?api=1&query=${selectedRestroom.latitude},${selectedRestroom.longitude}`} rel="noreferrer" target="_blank">Open map</a></dd></div>
+              <div><dt>Current availability</dt><dd>{selectedRestroom.is_open_now === null ? "Calculated from structured hours" : selectedRestroom.is_open_now ? "Open" : "Closed"}</dd></div>
+              <div><dt>Features</dt><dd>{selectedRestroom.features.length ? selectedRestroom.features.join(" · ") : "None supplied"}</dd></div>
+              <div><dt>Source</dt><dd>{selectedRestroom.data_source}{selectedRestroom.source_url && <> · <a href={selectedRestroom.source_url} rel="noreferrer" target="_blank">View source</a></>}</dd></div>
+              <div><dt>Submitted</dt><dd>{new Date(selectedRestroom.created_at).toLocaleString()}</dd></div>
+              <div><dt>Contributor ID</dt><dd>{selectedRestroom.created_by || "Imported record"}</dd></div>
+            </dl>
+            <div className="admin-restroom-modal-actions">
+              <button className="button button-secondary" onClick={() => setSelectedRestroom(null)}>Close</button>
+              <button className="button button-primary" disabled={Boolean(working)} onClick={() => { void runAction("restroom_status", { id: selectedRestroom.id, status: "published" }); setSelectedRestroom(null); }}><Check size={16} /> Approve restroom</button>
+              <button className="button admin-reject-button" disabled={Boolean(working)} onClick={() => { void runAction("restroom_status", { id: selectedRestroom.id, status: "rejected" }); setSelectedRestroom(null); }}><X size={16} /> Reject</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

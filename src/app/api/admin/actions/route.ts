@@ -110,6 +110,20 @@ export async function POST(request: Request) {
       return Response.json({ message: status === "published" ? "Community photo published." : "Community photo rejected." });
     }
 
+    if (action === "community_note_status") {
+      const id = validId(body?.id);
+      const status = body?.status === "published" || body?.status === "hidden" ? body.status : null;
+      if (!id || !status) throw new Error("Invalid community note action");
+      const { error } = await admin.from("community_notes").update({
+        status,
+        moderated_by: access.user.id,
+        moderated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("id", id).in("status", ["published", "hidden"]);
+      if (error) throw error;
+      return Response.json({ message: status === "published" ? "Community note restored." : "Community note hidden." });
+    }
+
     if (action === "profile_role") {
       const id = validId(body?.id);
       const role = body?.role === "user" || body?.role === "moderator" || body?.role === "owner" ? body.role : null;

@@ -9,6 +9,8 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   if (!admin) return Response.json({ error: "Community details are unavailable." }, { status: 503 });
+  const supabase = await createClient();
+  const { data: authData } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
   const { data: restroom } = await admin
     .from("restrooms")
     .select("id,status,data_source,source_url,community_verified_at,community_verification_count,community_not_found_count")
@@ -17,8 +19,6 @@ export async function GET(request: Request) {
   if (!restroom) return Response.json({ error: "Restroom not found." }, { status: 404 });
 
   if (restroom.status !== "published") {
-    const supabase = await createClient();
-    const { data: authData } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
     const now = new Date().toISOString();
     let promotionQuery = admin
       .from("advertising_campaigns")
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     if (!allowed) return Response.json({ error: "Restroom not found." }, { status: 404 });
   }
 
-  const [reviewsResult, photosResult] = await Promise.all([
+  const [reviewsResult, photosResult, notesResult] = await Promise.all([
     admin
       .from("reviews")
       .select("id,user_id,overall_rating,cleanliness_rating,note,created_at,updated_at")
@@ -48,18 +48,72 @@ export async function GET(request: Request) {
       .eq("status", "published")
       .order("created_at", { ascending: false })
       .limit(80),
+    admin
+      .from("community_notes")
+      .select("id,user_id,parent_id,body,upvote_count,downvote_count,created_at,updated_at")
+      .eq("restroom_id", restroomId)
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(160),
   ]);
-  if (reviewsResult.error || photosResult.error) {
+  if (reviewsResult.error || photosResult.error || notesResult.error) {
     return Response.json({ error: "Community details are temporarily unavailable." }, { status: 502 });
   }
 
   const reviews = reviewsResult.data || [];
   const photos = photosResult.data || [];
-  const userIds = Array.from(new Set([...reviews.map((review) => review.user_id), ...photos.map((photo) => photo.user_id)]));
+  const notes = notesResult.data || [];
+  const userIds = Array.from(new Set([
+    ...reviews.map((review) => review.user_id),
+    ...photos.map((photo) => photo.user_id),
+    ...notes.map((note) => note.user_id),
+  ]));
   const { data: profiles } = userIds.length > 0
     ? await admin.from("profiles").select("id,display_name").in("id", userIds)
     : { data: [] };
   const displayNameById = new Map((profiles || []).map((profile) => [profile.id, profile.display_name || "IWANNAPEE user"]));
+  const noteIds = notes.map((note) => note.id);
+  let viewerVotes: Array<{ note_id: string; value: number }> = [];
+  if (authData.user && noteIds.length > 0) {
+    const { data: voteRows, error: voteError } = await admin
+      .from("community_note_votes")
+      .select("note_id,value")
+      .eq("user_id", authData.user.id)
+      .in("note_id", noteIds);
+    if (voteError) return Response.json({ error: "Community details are temporarily unavailable." }, { status: 502 });
+    viewerVotes = voteRows || [];
+  }
+  const viewerVoteByNoteId = new Map(viewerVotes.map((vote) => [vote.note_id, vote.value]));
+  const mappedNotes = notes.map((note) => ({
+    id: note.id,
+    parentId: note.parent_id,
+    body: note.body,
+    displayName: displayNameById.get(note.user_id) || "IWANNAPEE user",
+    createdAt: note.created_at,
+    updatedAt: note.updated_at,
+    upvotes: note.upvote_count,
+    downvotes: note.downvote_count,
+    userVote: viewerVoteByNoteId.get(note.id) || 0,
+  }));
+  const repliesByParentId = new Map<string, typeof mappedNotes>();
+  for (const note of mappedNotes) {
+    if (!note.parentId) continue;
+    const replies = repliesByParentId.get(note.parentId) || [];
+    replies.push(note);
+    repliesByParentId.set(note.parentId, replies);
+  }
+  const communityNotes = mappedNotes
+    .filter((note) => !note.parentId)
+    .sort((left, right) => {
+      const scoreDifference = (right.upvotes - right.downvotes) - (left.upvotes - left.downvotes);
+      return scoreDifference || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    })
+    .map((note) => ({
+      ...note,
+      replies: (repliesByParentId.get(note.id) || [])
+        .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
+        .map((reply) => ({ ...reply, replies: [] })),
+    }));
 
   return Response.json({
     verification: {
@@ -90,5 +144,6 @@ export async function GET(request: Request) {
         .filter((photo) => photo.review_id === review.id)
         .map((photo) => ({ id: photo.id, url: photo.public_url, caption: photo.caption })),
     })),
+    notes: communityNotes,
   }, { headers: { "Cache-Control": "private, no-store" } });
 }

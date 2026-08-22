@@ -141,6 +141,7 @@ Treat all imported data as a starting point rather than a real-time availability
 - Reviews update aggregate overall and cleanliness scores automatically.
 - Imported listings begin as explicitly unverified. Signed-in users can confirm that a restroom still exists or report it missing; only positive IWANNAPEE confirmations produce the Community Verified timestamp.
 - Restroom and review photos enter an owner moderation queue before appearing publicly. The first approved restroom photo can become the listing cover image.
+- Signed-in users can post CAPTCHA-protected community notes, reply one level deep, and upvote or downvote each contribution. Owners can hide or restore notes from `/admin`.
 - Suggested updates and reports have separate queues in the schema.
 - Sponsored restrooms are always disclosed and are returned only when the visitor is inside the campaign radius and the campaign is active and unexpired. At most three sponsored campaigns are returned per local search; priority bids rank ahead of standard sponsored listings and distance breaks ties.
 - Photo uploads are limited to 8 MB JPEG, PNG, or WebP files in a user-owned storage folder.
