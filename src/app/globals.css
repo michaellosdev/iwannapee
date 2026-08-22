@@ -995,6 +995,10 @@ a {
   min-height: 24px;
 }
 
+.card-badge-row .rating-chip {
+  margin-left: auto;
+}
+
 .restroom-card-body {
   display: flex;
   flex-direction: column;
@@ -1112,6 +1116,10 @@ a {
   gap: 5px;
   margin-top: 11px;
   overflow: hidden;
+}
+
+.card-features:not(:empty) {
+  margin-bottom: 12px;
 }
 
 .card-features span,
@@ -4600,6 +4608,7 @@ a {
 
   .button-header {
     font-size: 0;
+    gap: 0;
     height: 40px;
     min-height: 40px;
     padding: 0;

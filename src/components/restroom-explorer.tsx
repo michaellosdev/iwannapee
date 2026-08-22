@@ -295,6 +295,7 @@ function RestroomCard({ restroom, onSelect, onPromotionVisible }: { restroom: Re
   ].filter(Boolean).join(" ");
   const statusClassName = promotion ? "status-badge promoted" : restroom.openNow ? "status-badge open" : restroom.openNow === null ? "status-badge unknown" : "status-badge";
   const statusLabel = promotion ? "Sponsored" : restroom.openNow === null ? "Hours?" : restroom.openNow ? "Open" : "Closed";
+  const showStatusBadge = Boolean(promotion || restroom.openNow !== null);
   const ratingChip = promotion ? (
     <span className="rating-chip promoted-chip">{promotion.priorityPlacement ? <Gavel size={14} /> : <Megaphone size={14} />} {promotion.priorityPlacement ? "Priority" : "Offer"}</span>
   ) : restroom.reviewCount > 0 ? (
@@ -322,11 +323,11 @@ function RestroomCard({ restroom, onSelect, onPromotionVisible }: { restroom: Re
         <div className="restroom-photo">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img alt={`Restroom at ${restroom.name}`} src={coverPhotoUrl} />
-          <span className={statusClassName}>{statusLabel}</span>
+          {showStatusBadge && <span className={statusClassName}>{statusLabel}</span>}
         </div>
       )}
       <div className="restroom-card-body">
-        {!coverPhotoUrl && <div className="card-badge-row"><span className={`${statusClassName} status-badge-inline`}>{statusLabel}</span>{ratingChip}</div>}
+        {!coverPhotoUrl && <div className="card-badge-row">{showStatusBadge && <span className={`${statusClassName} status-badge-inline`}>{statusLabel}</span>}{ratingChip}</div>}
         <div className="card-heading-row">
           <div>
             <h3>{restroom.name}</h3>
