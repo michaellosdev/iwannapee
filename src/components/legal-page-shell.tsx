@@ -27,7 +27,7 @@ export function LegalPageShell({
     <main className="legal-page">
       <header className="legal-site-header">
         <Link className="brand legal-brand" href="/" aria-label="IWANNAPEE home">
-          <span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-mark.png" width={512} /></span>
+          <span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-logo.webp" width={512} /></span>
           <span>IWANNAPEE</span>
         </Link>
         <Link className="button button-secondary" href="/"><ArrowLeft size={16} /> Back to map</Link>

@@ -16,10 +16,6 @@ export const metadata: Metadata = {
   applicationName: SITE_NAME,
   alternates: { canonical: "/" },
   manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [{ url: "/brand/iwannapee-mark.png", sizes: "512x512", type: "image/png" }],
-    apple: [{ url: "/brand/iwannapee-mark.png", sizes: "512x512", type: "image/png" }],
-  },
   robots: {
     index: true,
     follow: true,
@@ -39,16 +35,25 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     locale: "en_US",
+    images: [
+      {
+        url: "/brand/iwannapee-og.webp",
+        width: 1731,
+        height: 909,
+        alt: "IWANNAPEE — you have the right to pee",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: `${SITE_NAME} — Find Public Restrooms Near You`,
     description: SITE_DESCRIPTION,
+    images: ["/brand/iwannapee-og.webp"],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f6f2e8",
+  themeColor: "#00aee3",
   width: "device-width",
   initialScale: 1,
 };

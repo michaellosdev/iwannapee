@@ -1,18 +1,18 @@
 :root {
-  --ink: #17231d;
-  --muted: #667169;
-  --paper: #f7f4eb;
-  --surface: #fffdf7;
-  --line: #dcded5;
-  --blue: #315fff;
-  --blue-dark: #2447c7;
-  --blue-soft: #e7ecff;
-  --mint: #bcf3d3;
-  --yellow: #ffd85a;
-  --coral: #ff806e;
-  --green: #188654;
-  --shadow: 0 18px 60px rgba(27, 38, 32, 0.13);
-  --shadow-small: 0 8px 28px rgba(27, 38, 32, 0.09);
+  --ink: #001d3f;
+  --muted: #4b6980;
+  --paper: #eaf8ff;
+  --surface: #ffffff;
+  --line: #bdddeb;
+  --blue: #00aee3;
+  --blue-dark: #006cae;
+  --blue-soft: #dcf7ff;
+  --mint: #73e7f4;
+  --yellow: #bcefff;
+  --coral: #ff7285;
+  --green: #07849a;
+  --shadow: 0 20px 60px rgba(0, 61, 107, 0.18);
+  --shadow-small: 0 9px 28px rgba(0, 61, 107, 0.12);
   --radius: 22px;
 }
 
@@ -6006,4 +6006,430 @@ a {
   .verification-print-badge > strong { font-size: 25px; }
   .verification-print-badge b { font-size: 18px; }
   .verification-print-badge small { font-size: 13px; }
+}
+
+/* 2026 IWANNAPEE brand refresh — visual treatment only; layout stays unchanged. */
+body {
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(76, 215, 255, 0.16), transparent 22rem),
+    linear-gradient(180deg, #f5fcff 0%, var(--paper) 100%);
+}
+
+::selection {
+  background: #75e4ff;
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline-color: #00aee3;
+}
+
+.site-header,
+.legal-site-header {
+  background: rgba(244, 252, 255, 0.9);
+  border-color: rgba(0, 50, 91, 0.12);
+  box-shadow: 0 8px 30px rgba(0, 71, 121, 0.08);
+}
+
+.brand,
+.directory-brand {
+  color: var(--ink);
+  text-shadow: 0 1px 0 #fff;
+}
+
+.brand-mark img {
+  filter: drop-shadow(0 4px 8px rgba(0, 79, 129, 0.2));
+}
+
+.button-primary,
+.locate-button {
+  background: linear-gradient(180deg, #2bd8f6 0%, #00aee3 100%);
+  box-shadow: 0 5px 0 #00699f, 0 11px 24px rgba(0, 123, 179, 0.24);
+  color: var(--ink);
+}
+
+.button-primary:hover:not(:disabled),
+.locate-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #5be5fb 0%, #09b7e8 100%);
+}
+
+.button-header,
+.filter-chip.active,
+.hours-mode-picker button.active,
+.admin-tabs button[aria-current="page"] {
+  background: linear-gradient(180deg, #063762 0%, #001d3f 100%);
+  box-shadow: 0 4px 0 #00aee3;
+}
+
+.button-secondary,
+.button-light,
+.filter-chip,
+.feature-choice,
+.directory-city-links a {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--line);
+  box-shadow: 0 5px 16px rgba(0, 73, 122, 0.07);
+}
+
+.hero {
+  background:
+    radial-gradient(circle at 12% 22%, rgba(255, 255, 255, 0.95) 0 2.5rem, transparent 2.6rem),
+    radial-gradient(circle at 85% 27%, rgba(255, 255, 255, 0.78) 0 3.5rem, transparent 3.6rem),
+    radial-gradient(circle at 72% 75%, rgba(108, 225, 255, 0.35) 0 1.1rem, transparent 1.2rem),
+    linear-gradient(180deg, #77ddff 0%, #c9f1ff 55%, #effaff 100%);
+}
+
+.hero::before {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 4px, rgba(71, 213, 252, 0.54) 5px, transparent 7px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.78) 0 2px, transparent 3px);
+  background-position: 10px 12px, 32px 34px;
+  background-size: 58px 58px, 43px 43px;
+  mask-image: linear-gradient(to right, black 20%, transparent);
+  opacity: 0.72;
+}
+
+.hero h1,
+.world-ranking-heading h2,
+.explorer-heading h2,
+.how-copy h2,
+.business-promotion-copy > h2,
+.community-cta h2,
+.dialog-card h2,
+.business-promotion-form-pane h2,
+.admin-header h1,
+.directory-hero h1,
+.public-restroom-heading h1,
+.business-profile-hero h1 {
+  color: var(--ink);
+  text-shadow: 0 3px 0 rgba(255, 255, 255, 0.82);
+}
+
+.hero h1 em {
+  color: #00aee3;
+  text-shadow: 0 3px 0 #fff, 0 7px 18px rgba(0, 113, 170, 0.24);
+}
+
+.hero-proof,
+.hero-search,
+.hero-trust span,
+.search-results,
+.geocode-captcha {
+  border-color: rgba(0, 78, 126, 0.16);
+  box-shadow: 0 12px 34px rgba(0, 83, 135, 0.14);
+}
+
+.hero-proof,
+.hero-search,
+.hero-trust span {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.hero-float {
+  opacity: 0.52;
+}
+
+.hero-float img {
+  filter: saturate(1.12) hue-rotate(154deg) drop-shadow(0 18px 24px rgba(0, 72, 118, 0.2));
+}
+
+.world-ranking-section,
+.how-section {
+  background:
+    radial-gradient(circle at 92% 8%, rgba(102, 222, 255, 0.16), transparent 18rem),
+    #fff;
+}
+
+.explorer-section,
+.admin-page {
+  background:
+    radial-gradient(circle at 10% 5%, rgba(255, 255, 255, 0.9), transparent 20rem),
+    linear-gradient(180deg, #dff5ff 0%, #effaff 100%);
+  border-color: rgba(0, 61, 107, 0.1);
+}
+
+.world-ranking-card,
+.restroom-card,
+.map-layout,
+.admin-section,
+.admin-queue-toolbar,
+.directory-restroom-card,
+.public-restroom-detail,
+.claimed-business-card,
+.restroom-share-card,
+.business-profile-manager,
+.business-claims-status,
+.public-review-grid article,
+.business-public-grid article,
+.business-claim-form {
+  border-color: var(--line);
+  box-shadow: 0 7px 0 rgba(0, 114, 170, 0.06), var(--shadow-small);
+}
+
+.world-ranking-card:hover,
+.restroom-card:hover {
+  border-color: #45cbea;
+  box-shadow: 0 7px 0 rgba(0, 126, 184, 0.12), 0 18px 36px rgba(0, 73, 122, 0.14);
+}
+
+.world-ranking-photo,
+.restroom-photo,
+.photo-placeholder,
+.map-loading,
+.leaflet-container {
+  background-color: #d9f3ff;
+}
+
+.photo-placeholder {
+  background: linear-gradient(145deg, #e9faff, #bfe9f7);
+  color: #33708e;
+}
+
+.view-toggle {
+  background: #bfe9f7;
+  border: 1px solid #9dd8eb;
+}
+
+.view-toggle button.active {
+  box-shadow: 0 3px 0 #00aee3, 0 5px 12px rgba(0, 79, 129, 0.12);
+}
+
+.card-features span,
+.detail-features span,
+.public-feature-list span,
+.weekly-hours-editor,
+.admin-filter-row label,
+.business-image-field > div {
+  background: #edfaff;
+  border-color: var(--line);
+}
+
+.rating-chip,
+.world-ranking-title > span {
+  background: #bcefff;
+  color: var(--ink);
+}
+
+.promoted-restroom-card,
+.promotion-offer-card,
+.promotion-preview-card,
+.business-public-offer,
+.claim-business-card {
+  background: linear-gradient(145deg, #f8feff 0%, #d9f7ff 100%);
+  border-color: #42cbe9;
+  box-shadow: 0 7px 0 rgba(0, 143, 193, 0.14), var(--shadow-small);
+}
+
+.promoted-restroom-card .photo-placeholder {
+  background: linear-gradient(145deg, #6ae7fa, #05abd9);
+  color: var(--ink);
+}
+
+.status-badge.promoted,
+.rating-chip.promoted-chip,
+.world-rank-badge,
+.public-rating {
+  background: linear-gradient(180deg, #063762 0%, #001d3f 100%);
+  border-color: white;
+  color: white;
+}
+
+.world-rank-1 .world-rank-badge,
+.world-rank-2 .world-rank-badge,
+.world-rank-3 .world-rank-badge {
+  background: linear-gradient(180deg, #41dcf6 0%, #00aee3 100%);
+  color: var(--ink);
+}
+
+.map-marker {
+  border-color: var(--ink);
+  box-shadow: 0 5px 0 rgba(0, 29, 63, 0.18), 0 10px 22px rgba(0, 61, 107, 0.24);
+}
+
+.map-marker.selected,
+.map-marker.featured {
+  background: #2bd8f6;
+  border-color: white;
+  color: var(--ink);
+}
+
+.map-marker.featured.selected {
+  background: var(--ink);
+  border-color: #36d9f5;
+}
+
+.user-marker {
+  background: rgba(0, 174, 227, 0.28);
+}
+
+.detail-panel,
+.dialog-card,
+.business-promotion-dialog {
+  background: linear-gradient(180deg, #ffffff 0%, #f4fcff 100%);
+  border: 1px solid rgba(0, 92, 145, 0.14);
+  box-shadow: 0 28px 80px rgba(0, 45, 83, 0.25);
+}
+
+.dialog-backdrop {
+  background: rgba(0, 29, 63, 0.62);
+}
+
+.stack-form input,
+.stack-form textarea,
+.submission-form input,
+.submission-form textarea,
+.input-with-icon,
+.address-autocomplete-input,
+.community-update-form input,
+.community-update-form select,
+.community-update-form textarea,
+.business-claim-form input,
+.business-claim-form textarea,
+.business-profile-manager input,
+.business-profile-manager textarea,
+.admin-business-edit-form input,
+.admin-business-edit-form textarea {
+  background: #f8fdff;
+  border-color: #b7dce9;
+}
+
+.stack-form input:focus,
+.stack-form textarea:focus,
+.submission-form input:focus,
+.submission-form textarea:focus,
+.input-with-icon:focus-within,
+.address-autocomplete-input:focus-within {
+  box-shadow: 0 0 0 3px rgba(0, 174, 227, 0.16);
+}
+
+.business-promotion-section,
+.site-attribution,
+.business-claim-summary {
+  background:
+    radial-gradient(circle at 88% 5%, rgba(29, 209, 246, 0.3), transparent 18rem),
+    linear-gradient(145deg, #063762 0%, #001d3f 72%);
+}
+
+.business-promotion-section {
+  border: 2px solid #0fbfe8;
+  box-shadow: 0 13px 0 rgba(0, 103, 155, 0.16), 0 28px 70px rgba(0, 45, 83, 0.2);
+}
+
+.business-promotion-section::after {
+  background: #42dcf6;
+  opacity: 0.22;
+}
+
+.business-promotion-copy .eyebrow,
+.business-promotion-price strong {
+  color: #59e2fa;
+}
+
+.business-promotion-section .business-promotion-copy > h2 {
+  color: white;
+  text-shadow: 0 3px 0 rgba(0, 82, 128, 0.72);
+}
+
+.business-promotion-copy > p:not(.eyebrow),
+.business-promotion-price span,
+.business-promotion-demo > p,
+.business-claim-summary > p {
+  color: #b9dfec;
+}
+
+.business-promotion-demo-card {
+  background: linear-gradient(145deg, #f9feff 0%, #9cecff 100%);
+  border-color: white;
+  box-shadow: 18px 22px 0 #00679f, 0 30px 55px rgba(0, 0, 0, 0.2);
+}
+
+.community-cta {
+  background:
+    radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.3), transparent 9rem),
+    linear-gradient(135deg, #20cbed 0%, #008bc8 100%);
+  border: 2px solid #0078b6;
+  box-shadow: 0 9px 0 rgba(0, 84, 132, 0.18), 0 22px 50px rgba(0, 73, 122, 0.2);
+}
+
+.community-cta .eyebrow {
+  color: #d9f8ff;
+}
+
+.community-cta h2 {
+  color: white;
+  text-shadow: 0 3px 0 #006b9e;
+}
+
+.cta-icon {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 7px 0 rgba(0, 78, 121, 0.2);
+}
+
+.site-footer {
+  background: #f6fcff;
+  border-color: #b9dce9;
+}
+
+.toast,
+.admin-notice {
+  background: linear-gradient(180deg, #063762 0%, #001d3f 100%);
+  border: 1px solid #1ac8ed;
+}
+
+.business-promotion-intro-icon,
+.dialog-icon {
+  background: linear-gradient(145deg, #a8efff, #36d7f4);
+  color: var(--ink);
+  box-shadow: 0 5px 0 rgba(0, 112, 164, 0.16);
+}
+
+.promotion-price-strip {
+  background: #ddf8ff;
+  border-color: #75ddef;
+}
+
+.promotion-price-strip span,
+.business-public-offer > p:not(.eyebrow) {
+  color: #315d76;
+}
+
+.admin-card,
+.community-review,
+.community-note,
+.community-update,
+.community-verification-card,
+.public-detail-facts,
+.business-public-grid article,
+.business-public-offer {
+  border-color: var(--line);
+}
+
+.directory-hero {
+  background:
+    radial-gradient(circle at 86% 26%, rgba(255, 255, 255, 0.92) 0 4rem, transparent 4.1rem),
+    radial-gradient(circle at 10% 78%, rgba(69, 216, 251, 0.38), transparent 18rem),
+    linear-gradient(145deg, #8de4ff 0%, #e7f9ff 52%, #ffffff 100%);
+  border-color: #afd9e8;
+}
+
+.directory-hero > p:not(.eyebrow) {
+  color: #315d76;
+}
+
+.verification-status,
+.directory-restroom-flags .muted-flag {
+  background: #e3f8ff;
+  color: #32627d;
+}
+
+.verification-status.verified,
+.directory-restroom-flags span {
+  background: #d6f7fb;
+  color: #006b7c;
+}
+
+.verification-print-badge {
+  background: #e9faff;
+  border-color: var(--ink);
 }

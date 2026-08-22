@@ -23,7 +23,7 @@ export default function HomePage() {
         url: `${SITE_URL}/`,
         logo: {
           "@type": "ImageObject",
-          url: `${SITE_URL}/brand/iwannapee-mark.png`,
+          url: `${SITE_URL}/brand/iwannapee-logo.png`,
           width: 512,
           height: 512,
         },

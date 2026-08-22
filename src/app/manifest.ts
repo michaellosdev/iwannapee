@@ -9,18 +9,18 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#f7f4eb",
-    theme_color: "#315fff",
+    background_color: "#eaf8ff",
+    theme_color: "#00aee3",
     categories: ["navigation", "travel", "utilities"],
     icons: [
       {
-        src: "/brand/iwannapee-mark.png",
+        src: "/brand/iwannapee-logo.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/brand/iwannapee-mark.png",
+        src: "/brand/iwannapee-logo.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

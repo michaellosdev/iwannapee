@@ -846,7 +846,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
     <main>
       <header className="site-header">
         <a className="brand" href="#top" aria-label="IWANNAPEE home">
-          <span className="brand-mark"><Image alt="" height={512} priority src="/brand/iwannapee-mark.png" width={512} /></span>
+          <span className="brand-mark"><Image alt="" height={512} priority src="/brand/iwannapee-logo.webp" width={512} /></span>
           <span>IWANNAPEE</span>
         </a>
         <nav className={mobileNavOpen ? "main-nav open" : "main-nav"} aria-label="Main navigation">
@@ -1037,7 +1037,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
 
       <footer className="site-footer" id="site-footer">
         <div className="site-footer-content">
-          <a className="brand brand-footer" href="#top" aria-label="IWANNAPEE home"><span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-mark.png" width={512} /></span><span>IWANNAPEE</span></a>
+          <a className="brand brand-footer" href="#top" aria-label="IWANNAPEE home"><span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-logo.webp" width={512} /></span><span>IWANNAPEE</span></a>
           <p>Everyone deserves dignified access to a restroom.</p>
           <nav className="site-footer-links" aria-label="Footer"><button onClick={openAccount}>Account</button><Link href="/restrooms">Restroom directory</Link><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button><a href="/terms">Terms</a><a href="/refund-policy">Refund Policy</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></nav>
         </div>
