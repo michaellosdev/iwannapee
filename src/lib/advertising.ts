@@ -6,6 +6,8 @@ export type AdvertisingOffer = {
   sponsoredSlotCount: number;
 };
 
+const SPONSORED_LISTING_DURATION_DAYS = 7;
+
 function safeInteger(value: string | undefined, fallback: number, minimum: number, maximum: number) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed)) return fallback;
@@ -15,7 +17,7 @@ function safeInteger(value: string | undefined, fallback: number, minimum: numbe
 export function getAdvertisingOffer(): AdvertisingOffer {
   return {
     priceCents: safeInteger(process.env.AD_PRICE_CENTS, 500, 100, 100_000),
-    durationDays: safeInteger(process.env.AD_DURATION_DAYS, 30, 1, 365),
+    durationDays: SPONSORED_LISTING_DURATION_DAYS,
     defaultRadiusMeters: safeInteger(process.env.AD_RADIUS_METERS, 4828, 1609, 24_140),
     maxPlacementBidCents: safeInteger(process.env.AD_MAX_PLACEMENT_BID_CENTS, 3_000, 0, 100_000),
     sponsoredSlotCount: 3,

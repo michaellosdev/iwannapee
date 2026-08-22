@@ -24,7 +24,6 @@ const required = [
   "SENTRY_PROJECT",
   "SENTRY_AUTH_TOKEN",
   "AD_PRICE_CENTS",
-  "AD_DURATION_DAYS",
   "AD_RADIUS_METERS",
   "AD_MAX_PLACEMENT_BID_CENTS",
 ];
@@ -103,7 +102,7 @@ for (const name of ["CAPTCHA_SESSION_SECRET", "RATE_LIMIT_SECRET", "CRON_SECRET"
   if (value(name).length < 32) errors.push(`${name} must contain at least 32 characters.`);
 }
 
-for (const name of ["AD_PRICE_CENTS", "AD_DURATION_DAYS", "AD_RADIUS_METERS", "AD_MAX_PLACEMENT_BID_CENTS"]) {
+for (const name of ["AD_PRICE_CENTS", "AD_RADIUS_METERS", "AD_MAX_PLACEMENT_BID_CENTS"]) {
   const parsed = Number(value(name));
   if (!Number.isSafeInteger(parsed) || parsed <= 0) errors.push(`${name} must be a positive integer.`);
 }

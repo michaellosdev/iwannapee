@@ -40,8 +40,8 @@ or missing launch-critical settings.
 - Sentry variables: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`,
   `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_ORG`, `SENTRY_PROJECT`, and
   `SENTRY_AUTH_TOKEN`
-- Advertising limits: `AD_PRICE_CENTS`, `AD_DURATION_DAYS`,
-  `AD_RADIUS_METERS`, and `AD_MAX_PLACEMENT_BID_CENTS`
+- Advertising limits: `AD_PRICE_CENTS`, `AD_RADIUS_METERS`, and
+  `AD_MAX_PLACEMENT_BID_CENTS`
 
 Never add `SUPABASE_DB_URL`, restore-test credentials, or
 `RESTROOM_GEOJSON_PATH` to Vercel. Those are operator-only variables.
