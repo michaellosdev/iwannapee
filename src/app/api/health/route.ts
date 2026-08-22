@@ -8,6 +8,11 @@ export async function GET() {
   return Response.json(
     {
       status: result.ok ? "ok" : "degraded",
+      checks: {
+        database: result.database,
+        storage: result.storage,
+        payments: result.payments,
+      },
       checkedAt: result.checkedAt,
       durationMs: result.durationMs,
     },
