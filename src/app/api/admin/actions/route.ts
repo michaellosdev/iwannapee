@@ -1,4 +1,5 @@
 import { getOwnerAccess } from "@/lib/admin/authorization";
+import { getAdvertisingOffer } from "@/lib/advertising";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -49,9 +50,9 @@ export async function POST(request: Request) {
       if (readError || !update || update.status !== "pending") throw readError || new Error("Correction is no longer pending");
       if (status === "accepted") {
         const change = update.update_type === "code" ? { access_code: update.proposed_value }
-          : update.update_type === "hours" ? { hours: update.proposed_value }
+          : update.update_type === "hours" ? { hours: update.proposed_value, hours_schedule_status: "unknown", timezone: null, weekly_hours: [], is_open_now: null }
           : update.update_type === "access" ? { access_instructions: update.proposed_value }
-          : update.update_type === "closed" ? { is_open_now: false }
+          : update.update_type === "closed" ? { is_open_now: false, hours_schedule_status: "temporarily_closed" }
           : {};
         const { error: restroomError } = await admin.from("restrooms").update({ ...change, last_verified_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", update.restroom_id);
         if (restroomError) throw restroomError;
@@ -82,10 +83,11 @@ export async function POST(request: Request) {
     if (action === "sample_create") {
       const latitude = Number(body?.latitude);
       const longitude = Number(body?.longitude);
-      const placementBidCents = Math.max(0, Math.min(100000, Math.round(Number(body?.placementBidCents) || 0)));
+      const offer = getAdvertisingOffer();
+      const placementBidCents = Math.max(0, Math.min(offer.maxPlacementBidCents, Math.round(Number(body?.placementBidCents) || 0)));
       if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) throw new Error("Invalid sample coordinates");
       const now = new Date();
-      const { error } = await admin.from("advertising_campaigns").insert({
+      const { data: sampleCampaign, error } = await admin.from("advertising_campaigns").insert({
         created_by: access.user.id,
         business_name: text(body?.businessName, 120) || "IWANNAPEE Test Business",
         restroom_name: text(body?.restroomName, 120) || "Sample sponsored restroom",
@@ -96,17 +98,22 @@ export async function POST(request: Request) {
         offer_text: text(body?.offerText, 280) || "No-charge sponsored placement test.",
         promo_code: "TESTPEE",
         destination_url: process.env.NEXT_PUBLIC_SITE_URL || "https://www.iwannapee.lol",
-        radius_meters: 8047,
-        price_cents: 500,
+        hours: "Open 24 hours",
+        hours_schedule_status: "always_open",
+        weekly_hours: [],
+        radius_meters: offer.defaultRadiusMeters,
+        price_cents: offer.priceCents,
         placement_bid_cents: placementBidCents,
         currency: "usd",
-        duration_days: 7,
+        duration_days: offer.durationDays,
         status: "active",
         is_test: true,
         starts_at: now.toISOString(),
-        ends_at: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      });
-      if (error) throw error;
+        ends_at: new Date(now.getTime() + offer.durationDays * 24 * 60 * 60 * 1000).toISOString(),
+      }).select("id").single();
+      if (error || !sampleCampaign) throw error || new Error("Sample campaign was not created");
+      const { error: restroomLinkError } = await admin.rpc("ensure_campaign_restroom", { p_campaign_id: sampleCampaign.id });
+      if (restroomLinkError) throw restroomLinkError;
       return Response.json({ message: "Owner-only sample ad created. Search near its address to test placement." });
     }
 

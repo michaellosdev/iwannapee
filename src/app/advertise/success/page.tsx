@@ -63,9 +63,12 @@ export default async function AdvertisingSuccessPage({
             ? "People within your selected radius can now see the offer, promo code, and QR destination attached to your restroom listing."
             : "If you completed checkout, Stripe may still be confirming the payment. Your promotion activates only after the signed webhook is received."}
         </p>
-        <Link className="button button-primary" href="/">
-          Return to the map <ArrowRight size={18} />
-        </Link>
+        <div className="checkout-result-actions">
+          <Link className="button button-primary" href="/business">
+            View promotion analytics <ArrowRight size={18} />
+          </Link>
+          <Link className="button button-secondary" href="/">Return to the map</Link>
+        </div>
       </section>
     </main>
   );

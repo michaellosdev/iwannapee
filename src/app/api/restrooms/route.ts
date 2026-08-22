@@ -1,5 +1,7 @@
 import { captchaRequiredResponse, hasCaptchaSession } from "@/lib/security/captcha";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
+import { formatHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
+import { timeZoneAt } from "@/lib/server/timezone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,6 +49,14 @@ export async function POST(request: Request) {
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
       throw new InvalidSubmission("Choose a valid map location.");
     }
+    let hoursSchedule;
+    try {
+      hoursSchedule = normalizeHoursSchedule(body.hoursSchedule, true);
+    } catch (error) {
+      if (error instanceof InvalidHoursSchedule) throw new InvalidSubmission(error.message);
+      throw error;
+    }
+    const timezone = hoursSchedule.mode === "scheduled" ? timeZoneAt(latitude, longitude) : null;
 
     const features = Array.isArray(body.features)
       ? Array.from(new Set(body.features.filter((feature): feature is string => typeof feature === "string" && allowedFeatures.has(feature))))
@@ -73,12 +83,16 @@ export async function POST(request: Request) {
     const coverPhotoUrl = uploadedPath
       ? admin.storage.from("restroom-photos").getPublicUrl(uploadedPath).data.publicUrl
       : null;
-    const { error } = await admin.from("restrooms").insert({
+    const { data: createdRestroom, error } = await admin.from("restrooms").insert({
       name: text(body.name, "Name", 2, 120),
       address: text(body.address, "Address", 5, 240),
       latitude,
       longitude,
-      hours: text(body.hours, "Hours", 2, 160),
+      hours: formatHoursSchedule(hoursSchedule),
+      hours_schedule_status: hoursSchedule.mode,
+      timezone,
+      weekly_hours: hoursSchedule.periods,
+      is_open_now: null,
       directions: text(body.directions, "Directions", 2, 500),
       access_code: accessCode || null,
       access_instructions: text(body.accessInstructions, "Access note", 0, 500, false) || null,
@@ -87,8 +101,8 @@ export async function POST(request: Request) {
       features,
       created_by: authData.user.id,
       status: "pending",
-    });
-    if (error) throw error;
+    }).select("id").single();
+    if (error || !createdRestroom) throw error || new Error("Restroom was not created");
     return Response.json({ submitted: true });
   } catch (error) {
     if (uploadedPath) await admin.storage.from("restroom-photos").remove([uploadedPath]).catch(() => undefined);

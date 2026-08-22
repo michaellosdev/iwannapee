@@ -72,9 +72,9 @@ SUPABASE_SECRET_KEY=your-supabase-secret-key
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 AD_PRICE_CENTS=500
-AD_DURATION_DAYS=7
-AD_RADIUS_METERS=8047
-AD_MAX_PLACEMENT_BID_CENTS=10000
+AD_DURATION_DAYS=30
+AD_RADIUS_METERS=4828
+AD_MAX_PLACEMENT_BID_CENTS=3000
 ```
 
 For local Stripe testing, forward events to the included webhook route:
@@ -110,7 +110,9 @@ GOOGLE_SITE_VERIFICATION=
 
 Google discovery and rankings are not immediate or guaranteed. Search-visible restroom and city pages will require unique, indexable URLs as the verified database grows; avoid publishing thin or duplicated location pages.
 
-Each eligible local search has three sponsored slots. The $5 base price makes a campaign eligible for those slots for seven days. An advertiser can add an optional one-time placement bid at Checkout; campaigns rank by bid first, distance second, then campaign creation time. This is not cost-per-click advertising, and a bid does not guarantee placement when three higher eligible bids are nearby. The server clamps the bid to `AD_MAX_PLACEMENT_BID_CENTS`, records it with the campaign, and sends the base listing and bid to Stripe as separate line items.
+Each eligible local search has three sponsored slots. The $5 founding price makes a campaign eligible for those slots for 30 days. An advertiser can add an optional one-time placement bid at Checkout; campaigns rank by bid first, distance second, then campaign creation time. This is not cost-per-click advertising, and a bid does not guarantee placement when three higher eligible bids are nearby. The server clamps the bid to `AD_MAX_PLACEMENT_BID_CENTS`, records it with the campaign, and sends the base listing, bid, and any optional project-support amount to Stripe as separate line items.
+
+Signed-in advertisers can open `/business` for privacy-conscious first-party campaign totals: appearances, promotion opens, promo-code copies, QR-link copies, and business-site clicks. Repeated activity of the same type from one page view is deduplicated.
 
 ## Restroom data sources
 

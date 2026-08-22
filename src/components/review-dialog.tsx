@@ -6,6 +6,8 @@ import type { User } from "@supabase/supabase-js";
 import { CaptchaWidget } from "@/components/captcha-widget";
 import type { Restroom } from "@/types/restroom";
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 type ReviewDialogProps = {
   restroom: Restroom | null;
   user: User | null;
@@ -53,7 +55,8 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
       return;
     }
 
-    if (selectedRestroom.source === "demo" || selectedRestroom.source === "openstreetmap") {
+    const ratingRestroomId = selectedRestroom.promotion?.restroomId || selectedRestroom.id;
+    if (selectedRestroom.source === "demo" || !uuidPattern.test(ratingRestroomId)) {
       setError("Connect Supabase and publish this restroom before accepting live ratings.");
       return;
     }
@@ -64,7 +67,7 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        restroomId: selectedRestroom.id,
+        restroomId: ratingRestroomId,
         overallRating,
         cleanlinessRating,
         note,

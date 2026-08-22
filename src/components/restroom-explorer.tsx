@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -50,6 +50,7 @@ import { SubmitRestroomDialog } from "@/components/submit-restroom-dialog";
 import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
 import { demoRestrooms, DEFAULT_LOCATION } from "@/lib/demo-restrooms";
 import { distanceInMeters, formatDistance } from "@/lib/distance";
+import { createPromotionViewId, recordPromotionActivity, type PromotionActivityType } from "@/lib/promotion-activity";
 import { createClient } from "@/lib/supabase/client";
 import type { Coordinates, LocationSearchResult, Restroom, RestroomFeature } from "@/types/restroom";
 
@@ -67,7 +68,7 @@ type NearbyRestroomRow = {
   description: string | null;
   directions: string | null;
   hours: string | null;
-  is_open_now: boolean;
+  is_open_now: boolean | null;
   access_code: string | null;
   access_instructions: string | null;
   cover_photo_url: string | null;
@@ -85,12 +86,14 @@ type NearbyRestroomRow = {
 
 type NearbyAdvertisementRow = {
   campaign_id: string;
+  restroom_id: string | null;
   business_name: string;
   restroom_name: string;
   address: string;
   latitude: number;
   longitude: number;
   hours: string | null;
+  is_open_now: boolean | null;
   directions: string | null;
   headline: string;
   offer_text: string;
@@ -153,7 +156,7 @@ function toSponsoredRestroom(row: NearbyAdvertisementRow): Restroom {
     description: row.offer_text,
     directions: row.directions || "Ask a team member if you need help finding the restroom.",
     hours: row.hours || "Ask the business for today’s hours",
-    openNow: null,
+    openNow: row.is_open_now,
     accessCode: null,
     accessInstructions: `Restroom availability supplied by ${row.business_name}.`,
     coverPhotoUrl: null,
@@ -168,6 +171,7 @@ function toSponsoredRestroom(row: NearbyAdvertisementRow): Restroom {
     source: "promotion",
     promotion: {
       campaignId: row.campaign_id,
+      restroomId: row.restroom_id,
       businessName: row.business_name,
       headline: row.headline,
       offerText: row.offer_text,
@@ -204,8 +208,9 @@ function FeatureIcon({ feature }: { feature: RestroomFeature }) {
   return <Check size={15} />;
 }
 
-function RestroomCard({ restroom, onSelect }: { restroom: Restroom; onSelect: () => void }) {
+function RestroomCard({ restroom, onSelect, onPromotionVisible }: { restroom: Restroom; onSelect: () => void; onPromotionVisible: (campaignId: string) => void }) {
   const promotion = restroom.promotion;
+  const cardRef = useRef<HTMLElement>(null);
   const coverPhotoUrl = restroom.coverPhotoUrl?.trim() || null;
   const cardClassName = [
     "restroom-card",
@@ -215,8 +220,20 @@ function RestroomCard({ restroom, onSelect }: { restroom: Restroom; onSelect: ()
   const statusClassName = promotion ? "status-badge promoted" : restroom.openNow ? "status-badge open" : restroom.openNow === null ? "status-badge unknown" : "status-badge";
   const statusLabel = promotion ? "Sponsored" : restroom.openNow === null ? "Hours?" : restroom.openNow ? "Open" : "Closed";
 
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || !promotion) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5)) return;
+      onPromotionVisible(promotion.campaignId);
+      observer.disconnect();
+    }, { threshold: 0.5 });
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [onPromotionVisible, promotion]);
+
   return (
-    <article className={cardClassName} onClick={onSelect}>
+    <article className={cardClassName} onClick={onSelect} ref={cardRef}>
       <button className="card-click-target" aria-label={`View ${restroom.name}`} onClick={onSelect} />
       {coverPhotoUrl && (
         <div className="restroom-photo">
@@ -304,11 +321,13 @@ function RestroomDetail({
   onClose,
   onRate,
   onNotify,
+  onPromotionAction,
 }: {
   restroom: Restroom;
   onClose: () => void;
   onRate: () => void;
   onNotify: (message: string) => void;
+  onPromotionAction: (campaignId: string, eventType: PromotionActivityType) => void;
 }) {
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${restroom.latitude},${restroom.longitude}`;
 
@@ -321,7 +340,15 @@ function RestroomDetail({
   async function copyPromoCode() {
     if (!restroom.promotion?.promoCode) return;
     await navigator.clipboard.writeText(restroom.promotion.promoCode);
+    onPromotionAction(restroom.promotion.campaignId, "promo_copy");
     onNotify("Promo code copied");
+  }
+
+  async function copyQrTarget() {
+    if (!restroom.promotion?.qrTargetUrl) return;
+    await navigator.clipboard.writeText(restroom.promotion.qrTargetUrl);
+    onPromotionAction(restroom.promotion.campaignId, "qr_copy");
+    onNotify("QR link copied");
   }
 
   async function shareRestroom() {
@@ -362,11 +389,20 @@ function RestroomDetail({
           </a>
           {restroom.promotion ? (
             (restroom.promotion.destinationUrl || restroom.promotion.qrTargetUrl) && (
-              <a className="button button-secondary" href={restroom.promotion.destinationUrl || restroom.promotion.qrTargetUrl || "#"} rel="noreferrer" target="_blank">
+              <a
+                className="button button-secondary"
+                href={restroom.promotion.destinationUrl || restroom.promotion.qrTargetUrl || "#"}
+                onClick={() => restroom.promotion?.destinationUrl && onPromotionAction(restroom.promotion.campaignId, "website_click")}
+                rel="noreferrer"
+                target="_blank"
+              >
                 <ArrowRight size={17} /> View offer
               </a>
             )
-          ) : <button className="button button-secondary" onClick={onRate}><Star size={17} /> Rate it</button>}
+          ) : null}
+          {(!restroom.promotion || restroom.promotion.restroomId) && (
+            <button className="button button-secondary" onClick={onRate}><Star size={17} /> {restroom.promotion ? "Rate restroom" : "Rate it"}</button>
+          )}
         </div>
 
         {restroom.promotion && (
@@ -383,9 +419,12 @@ function RestroomDetail({
                   </button>
                 )}
                 {restroom.promotion.qrTargetUrl && (
-                  <a aria-label="Open promoted QR destination" href={restroom.promotion.qrTargetUrl} rel="noreferrer" target="_blank">
-                    <QRCodeSVG bgColor="#ffffff" fgColor="#17231d" level="M" marginSize={1} size={90} value={restroom.promotion.qrTargetUrl} />
-                  </a>
+                  <div className="promotion-qr-action">
+                    <a aria-label="Open promoted QR destination" href={restroom.promotion.qrTargetUrl} rel="noreferrer" target="_blank">
+                      <QRCodeSVG bgColor="#ffffff" fgColor="#17231d" level="M" marginSize={1} size={90} value={restroom.promotion.qrTargetUrl} />
+                    </a>
+                    <button onClick={copyQrTarget} type="button"><Clipboard size={14} /> Copy QR link</button>
+                  </div>
                 )}
               </div>
             )}
@@ -413,8 +452,8 @@ function RestroomDetail({
 
         {restroom.accessInstructions && <p className="access-note">{restroom.accessInstructions}</p>}
 
-        <div className="detail-stats">
-          <div><Droplets size={21} /><span><strong>{restroom.reviewCount ? `${restroom.cleanlinessRating.toFixed(1)} / 5` : "Not rated"}</strong><small>Cleanliness</small></span></div>
+        <div className={restroom.promotion ? "detail-stats detail-stats-single" : "detail-stats"}>
+          {!restroom.promotion && <div><Droplets size={21} /><span><strong>{restroom.reviewCount ? `${restroom.cleanlinessRating.toFixed(1)} / 5` : "Not rated"}</strong><small>Cleanliness</small></span></div>}
           <div><Clock3 size={21} /><span><strong>{restroom.hours}</strong><small>Reported hours</small></span></div>
         </div>
 
@@ -470,6 +509,16 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
   const [loadingRankings, setLoadingRankings] = useState(true);
   const [searchCaptchaRequired, setSearchCaptchaRequired] = useState(false);
   const [searchRetryNonce, setSearchRetryNonce] = useState(0);
+  const promotionViewId = useRef("");
+
+  const recordPromotionEvent = useCallback((campaignId: string, eventType: PromotionActivityType) => {
+    if (!promotionViewId.current) promotionViewId.current = createPromotionViewId();
+    recordPromotionActivity(promotionViewId.current, campaignId, eventType);
+  }, []);
+
+  const recordPromotionImpression = useCallback((campaignId: string) => {
+    recordPromotionEvent(campaignId, "impression");
+  }, [recordPromotionEvent]);
 
   const refreshRestrooms = useCallback(async (location: Coordinates) => {
     const supabase = createClient();
@@ -549,6 +598,10 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
     const params = new URLSearchParams(window.location.search);
     if (params.get("submit") === "1") window.setTimeout(() => setSubmitOpen(true), 0);
     if (params.get("business") === "1" || params.get("advertise") === "1") window.setTimeout(() => setAdvertiseOpen(true), 0);
+    if (params.get("business_account") === "1") {
+      window.setTimeout(() => setAuthReturnTo("/business"), 0);
+      window.setTimeout(() => setAuthOpen(true), 0);
+    }
     if (params.get("admin") === "1") {
       window.setTimeout(() => setAuthReturnTo("/admin"), 0);
       window.setTimeout(() => setAuthOpen(true), 0);
@@ -649,12 +702,22 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
     setAdvertiseOpen(true);
   }
 
+  function openAccount() {
+    setAuthReturnTo("/business");
+    setAuthOpen(true);
+  }
+
   function openRankedRestroom(restroom: RankedRestroom) {
     setCenter({ latitude: restroom.latitude, longitude: restroom.longitude });
     setLocationLabel(restroom.name);
     setView("map");
     setSelected({ ...restroom, distanceMeters: 0 });
     window.setTimeout(() => document.getElementById("find")?.scrollIntoView({ behavior: "smooth" }), 0);
+  }
+
+  function selectRestroom(restroom: Restroom) {
+    if (restroom.promotion) recordPromotionEvent(restroom.promotion.campaignId, "detail_open");
+    setSelected(restroom);
   }
 
   const visibleRestrooms = useMemo(() => {
@@ -686,8 +749,8 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
           <button className="nav-link nav-business" onClick={beginAdvertising}>Promote {formatPrice(adOffer.priceCents)}</button>
         </nav>
         <div className="header-actions">
-          <button className="button button-header" onClick={() => setAuthOpen(true)}>
-            <UserRound size={17} /> {user ? user.email?.split("@")[0] : "Sign in"}
+          <button className="button button-header" onClick={openAccount}>
+            <UserRound size={17} /> {user ? "My promotions" : "Sign in"}
           </button>
           <button className="mobile-menu" onClick={() => setMobileNavOpen((current) => !current)} aria-label="Toggle menu">
             {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
@@ -778,18 +841,18 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
         {view === "map" ? (
           <div className="map-layout">
             <div className="result-sidebar">
-              {visibleRestrooms.map((restroom) => <RestroomCard key={restroom.id} restroom={restroom} onSelect={() => setSelected(restroom)} />)}
+              {visibleRestrooms.map((restroom) => <RestroomCard key={restroom.id} restroom={restroom} onPromotionVisible={recordPromotionImpression} onSelect={() => selectRestroom(restroom)} />)}
               {visibleRestrooms.length === 0 && <EmptyResults onClear={() => setActiveFilters([])} />}
             </div>
             <div className="map-stage">
-              <RestroomMap center={center} restrooms={visibleRestrooms} selectedId={selected?.id || null} onSelect={setSelected} />
+              <RestroomMap center={center} restrooms={visibleRestrooms} selectedId={selected?.id || null} onSelect={selectRestroom} />
               <button className="map-locate-control" onClick={locateUser} aria-label="Use current location"><Crosshair size={20} /></button>
               <div className="map-legend"><span className="legend-user" /> You <span className="legend-restroom" /> Restroom <span className="legend-featured" /> Sponsored</div>
             </div>
           </div>
         ) : (
           <div className="list-grid">
-            {visibleRestrooms.map((restroom) => <RestroomCard key={restroom.id} restroom={restroom} onSelect={() => setSelected(restroom)} />)}
+            {visibleRestrooms.map((restroom) => <RestroomCard key={restroom.id} restroom={restroom} onPromotionVisible={recordPromotionImpression} onSelect={() => selectRestroom(restroom)} />)}
             {visibleRestrooms.length === 0 && <EmptyResults onClear={() => setActiveFilters([])} />}
           </div>
         )}
@@ -866,13 +929,13 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
       <footer>
         <a className="brand brand-footer" href="#top" aria-label="IWANNAPEE home"><span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-mark.png" width={512} /></span><span>IWANNAPEE</span></a>
         <p>Everyone deserves dignified access to a restroom.</p>
-        <div><button onClick={() => setAuthOpen(true)}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></div>
+        <div><button onClick={openAccount}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></div>
       </footer>
 
       {selected && (
         <>
           <div className="detail-backdrop" onClick={() => setSelected(null)} />
-          <RestroomDetail restroom={selected} onClose={() => setSelected(null)} onRate={() => setReviewing(selected)} onNotify={setNotice} />
+          <RestroomDetail restroom={selected} onClose={() => setSelected(null)} onRate={() => setReviewing(selected)} onNotify={setNotice} onPromotionAction={recordPromotionEvent} />
         </>
       )}
 

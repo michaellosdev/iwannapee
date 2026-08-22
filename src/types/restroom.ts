@@ -13,6 +13,7 @@ export type RestroomFeature =
 
 export type RestroomPromotion = {
   campaignId: string;
+  restroomId: string | null;
   businessName: string;
   headline: string;
   offerText: string;

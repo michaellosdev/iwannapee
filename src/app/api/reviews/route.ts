@@ -3,6 +3,8 @@ import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function POST(request: Request) {
   if (!hasCaptchaSession(request)) return captchaRequiredResponse();
   const supabase = await createClient();
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
   const overallRating = Number(body?.overallRating);
   const cleanlinessRating = Number(body?.cleanlinessRating);
   const note = typeof body?.note === "string" ? body.note.trim() : "";
-  if (!/^[0-9a-f-]{36}$/i.test(restroomId)
+  if (!uuidPattern.test(restroomId)
     || !Number.isInteger(overallRating) || overallRating < 1 || overallRating > 5
     || !Number.isInteger(cleanlinessRating) || cleanlinessRating < 1 || cleanlinessRating > 5
     || note.length > 500) {
@@ -39,7 +41,21 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   if (!admin) return Response.json({ error: "Ratings are not configured." }, { status: 503 });
   const { data: restroom } = await admin.from("restrooms").select("id,status").eq("id", restroomId).single();
-  if (!restroom || restroom.status !== "published") {
+  let ratingAllowed = restroom?.status === "published";
+  if (restroom && !ratingAllowed) {
+    const now = new Date().toISOString();
+    const { data: activePromotion } = await admin
+      .from("advertising_campaigns")
+      .select("id")
+      .eq("restroom_id", restroomId)
+      .eq("status", "active")
+      .lte("starts_at", now)
+      .gt("ends_at", now)
+      .limit(1)
+      .maybeSingle();
+    ratingAllowed = Boolean(activePromotion);
+  }
+  if (!restroom || !ratingAllowed) {
     return Response.json({ error: "This restroom is not available for ratings." }, { status: 404 });
   }
 

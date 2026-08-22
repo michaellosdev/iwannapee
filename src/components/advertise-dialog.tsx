@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { CaptchaWidget } from "@/components/captcha-widget";
+import { WeeklyHoursEditor } from "@/components/weekly-hours-editor";
 import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
+import { createHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
 import type { Coordinates, LocationSearchResult } from "@/types/restroom";
 
 type AdvertiseDialogProps = {
@@ -43,7 +45,7 @@ export function AdvertiseDialog({
   const [businessName, setBusinessName] = useState("");
   const [restroomName, setRestroomName] = useState("");
   const [address, setAddress] = useState("");
-  const [hours, setHours] = useState("");
+  const [hoursSchedule, setHoursSchedule] = useState(() => createHoursSchedule("scheduled"));
   const [directions, setDirections] = useState("");
   const [headline, setHeadline] = useState("");
   const [offerText, setOfferText] = useState("");
@@ -60,6 +62,7 @@ export function AdvertiseDialog({
     radiusOptions[0]),
   );
   const [placementBidCents, setPlacementBidCents] = useState(0);
+  const [supportAmount, setSupportAmount] = useState("");
   const [confirmedPublic, setConfirmedPublic] = useState(false);
   const [status, setStatus] = useState<"idle" | "locating" | "checkout">("idle");
   const [error, setError] = useState("");
@@ -68,8 +71,11 @@ export function AdvertiseDialog({
   if (!open) return null;
 
   const previewQrUrl = qrTargetUrl || destinationUrl;
-  const totalPriceCents = offer.priceCents + placementBidCents;
-  const bidOptions = Array.from(new Set([0, 500, 1000, 2000, 5000, offer.maxPlacementBidCents]))
+  const supportAmountCents = /^\d+(?:\.\d{0,2})?$/.test(supportAmount.trim())
+    ? Math.round(Number(supportAmount) * 100)
+    : supportAmount.trim() ? -1 : 0;
+  const totalPriceCents = offer.priceCents + placementBidCents + Math.max(0, supportAmountCents);
+  const bidOptions = Array.from(new Set([0, 500, 1500, 3000, offer.maxPlacementBidCents]))
     .filter((amount) => amount <= offer.maxPlacementBidCents)
     .sort((first, second) => first - second);
 
@@ -107,6 +113,16 @@ export function AdvertiseDialog({
       setError("Confirm that customers may genuinely use this restroom.");
       return;
     }
+    try {
+      normalizeHoursSchedule(hoursSchedule, false);
+    } catch (hoursError) {
+      setError(hoursError instanceof InvalidHoursSchedule ? hoursError.message : "Check the available hours.");
+      return;
+    }
+    if (supportAmountCents < 0 || supportAmountCents > 100_000) {
+      setError("Project support must be between $0 and $1,000.");
+      return;
+    }
 
     setStatus("checkout");
     const pinnedCoordinates = coordinates || currentLocation;
@@ -120,7 +136,7 @@ export function AdvertiseDialog({
           address,
           latitude: pinnedCoordinates.latitude,
           longitude: pinnedCoordinates.longitude,
-          hours,
+          hoursSchedule,
           directions,
           headline,
           offerText,
@@ -129,6 +145,7 @@ export function AdvertiseDialog({
           destinationUrl,
           radiusMiles,
           placementBidCents,
+          supportAmountCents,
         }),
       });
       const result = (await response.json()) as { checkoutUrl?: string; error?: string };
@@ -166,7 +183,7 @@ export function AdvertiseDialog({
 
           <div className="promotion-price-strip">
             <strong>{formatPrice(totalPriceCents)}</strong>
-            <span>{offer.durationDays} days · {formatPrice(offer.priceCents)} listing{placementBidCents > 0 ? ` + ${formatPrice(placementBidCents)} placement bid` : ""} · no subscription</span>
+            <span>{offer.durationDays} days · {formatPrice(offer.priceCents)} listing{placementBidCents > 0 ? ` + ${formatPrice(placementBidCents)} placement bid` : ""}{supportAmountCents > 0 ? ` + ${formatPrice(supportAmountCents)} project support` : ""} · no subscription</span>
           </div>
 
           <form className="business-promotion-form" onSubmit={startCheckout}>
@@ -206,13 +223,13 @@ export function AdvertiseDialog({
                   <small className="field-hint"><MapPin size={13} /> {locationLabel}</small>
                 </label>
                 <label>
-                  <span>Available hours</span>
-                  <input maxLength={160} onChange={(event) => setHours(event.target.value)} placeholder="Daily, 7 AM–8 PM" value={hours} />
-                </label>
-                <label>
                   <span>Directions inside</span>
                   <input maxLength={500} onChange={(event) => setDirections(event.target.value)} placeholder="Past the counter, on the left" value={directions} />
                 </label>
+                <div className="form-span-2 form-field-group">
+                  <span>Available hours</span>
+                  <WeeklyHoursEditor allowUnknown={false} onChange={setHoursSchedule} value={hoursSchedule} />
+                </div>
               </div>
             </fieldset>
 
@@ -271,6 +288,31 @@ export function AdvertiseDialog({
               <p className="placement-bid-warning">Paid once at checkout—not per click. A bid improves rank but cannot guarantee a slot when three higher eligible bids are nearby.</p>
             </fieldset>
 
+            <fieldset>
+              <legend>Support IWANNAPEE <small>optional</small></legend>
+              <div className="project-support-field">
+                <div>
+                  <Sparkles size={18} />
+                  <p>Like the project? Add any amount to help us verify more restrooms and keep improving the map.</p>
+                </div>
+                <label>
+                  <span>$</span>
+                  <input
+                    aria-label="Optional project support amount"
+                    inputMode="decimal"
+                    max="1000"
+                    min="0"
+                    onChange={(event) => setSupportAmount(event.target.value)}
+                    placeholder="0.00"
+                    step="0.01"
+                    type="number"
+                    value={supportAmount}
+                  />
+                </label>
+              </div>
+              <p className="placement-bid-warning">This is optional project support and does not change placement.</p>
+            </fieldset>
+
             <label className="promotion-confirmation">
               <input checked={confirmedPublic} onChange={(event) => setConfirmedPublic(event.target.checked)} required type="checkbox" />
               <span>I confirm this restroom is genuinely available during the hours shown and that the offer is accurate.</span>
@@ -312,6 +354,7 @@ export function AdvertiseDialog({
               <li><QrCode size={15} /> QR or promo-code redemption</li>
               <li><Megaphone size={15} /> Sponsored map and list treatment</li>
               <li><Gavel size={15} /> {placementBidCents > 0 ? `${formatPrice(placementBidCents)} one-time priority bid` : "Optional one-time placement bid"}</li>
+              {supportAmountCents > 0 && <li><Sparkles size={15} /> {formatPrice(supportAmountCents)} supporting IWANNAPEE improvements</li>}
               <li><ShieldCheck size={15} /> Clear sponsored disclosure</li>
             </ul>
           </div>

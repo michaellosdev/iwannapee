@@ -12,12 +12,12 @@ async function activateCampaign(session: Stripe.Checkout.Session) {
 
   const { data: campaign, error } = await admin
     .from("advertising_campaigns")
-    .select("id,created_by,duration_days,status,price_cents,placement_bid_cents,currency,stripe_checkout_session_id")
+    .select("id,created_by,duration_days,status,price_cents,placement_bid_cents,support_amount_cents,currency,stripe_checkout_session_id")
     .eq("id", campaignId)
     .single();
   if (error || !campaign || campaign.status !== "pending_payment") return;
 
-  const expectedAmount = campaign.price_cents + campaign.placement_bid_cents;
+  const expectedAmount = campaign.price_cents + campaign.placement_bid_cents + campaign.support_amount_cents;
   if (
     session.client_reference_id !== campaign.id
     || session.id !== campaign.stripe_checkout_session_id
@@ -25,10 +25,16 @@ async function activateCampaign(session: Stripe.Checkout.Session) {
     || session.currency !== campaign.currency
     || session.metadata?.user_id !== campaign.created_by
     || session.metadata?.placement_bid_cents !== String(campaign.placement_bid_cents)
+    || session.metadata?.support_amount_cents !== String(campaign.support_amount_cents)
     || session.metadata?.total_price_cents !== String(expectedAmount)
   ) {
     throw new Error("Paid Checkout Session does not match the campaign total");
   }
+
+  const { error: restroomLinkError } = await admin.rpc("ensure_campaign_restroom", {
+    p_campaign_id: campaign.id,
+  });
+  if (restroomLinkError) throw restroomLinkError;
 
   const startsAt = new Date();
   const endsAt = new Date(startsAt.getTime() + campaign.duration_days * 24 * 60 * 60 * 1000);

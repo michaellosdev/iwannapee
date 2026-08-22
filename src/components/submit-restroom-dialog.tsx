@@ -5,6 +5,8 @@ import { Camera, Check, Crosshair, MapPin, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { CaptchaWidget } from "@/components/captcha-widget";
+import { WeeklyHoursEditor } from "@/components/weekly-hours-editor";
+import { createHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
 import { createClient } from "@/lib/supabase/client";
 import type { Coordinates, LocationSearchResult, RestroomFeature } from "@/types/restroom";
 
@@ -33,7 +35,7 @@ export function SubmitRestroomDialog({
 }: SubmitRestroomDialogProps) {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
-  const [hours, setHours] = useState("");
+  const [hoursSchedule, setHoursSchedule] = useState(() => createHoursSchedule("unknown"));
   const [directions, setDirections] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [accessInstructions, setAccessInstructions] = useState("");
@@ -88,6 +90,13 @@ export function SubmitRestroomDialog({
       return;
     }
 
+    try {
+      normalizeHoursSchedule(hoursSchedule, true);
+    } catch (hoursError) {
+      setError(hoursError instanceof InvalidHoursSchedule ? hoursError.message : "Check the restroom hours.");
+      return;
+    }
+
     const supabase = createClient();
     if (!supabase) {
       setError("Supabase is not connected yet. Add the environment variables in .env.local to publish.");
@@ -134,7 +143,7 @@ export function SubmitRestroomDialog({
         address,
         latitude: (coordinates || currentLocation).latitude,
         longitude: (coordinates || currentLocation).longitude,
-        hours,
+        hoursSchedule,
         directions,
         accessCode,
         accessInstructions,
@@ -185,10 +194,10 @@ export function SubmitRestroomDialog({
                   <span>Name</span>
                   <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Library — ground floor" required />
                 </label>
-                <label>
+                <div className="form-span-2 form-field-group">
                   <span>Hours</span>
-                  <input value={hours} onChange={(event) => setHours(event.target.value)} placeholder="Mon–Fri, 8 AM–8 PM" required />
-                </label>
+                  <WeeklyHoursEditor onChange={setHoursSchedule} value={hoursSchedule} />
+                </div>
                 <label className="form-span-2">
                   <span>Street address</span>
                   <div className="address-pin-row">

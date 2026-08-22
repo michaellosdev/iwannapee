@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getAdvertisingOffer } from "@/lib/advertising";
+import { formatHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
 import { captchaRequiredResponse, hasCaptchaSession } from "@/lib/security/captcha";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
+import { timeZoneAt } from "@/lib/server/timezone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,7 +14,7 @@ type CheckoutBody = {
   address?: unknown;
   latitude?: unknown;
   longitude?: unknown;
-  hours?: unknown;
+  hoursSchedule?: unknown;
   directions?: unknown;
   headline?: unknown;
   offerText?: unknown;
@@ -21,6 +23,7 @@ type CheckoutBody = {
   destinationUrl?: unknown;
   radiusMiles?: unknown;
   placementBidCents?: unknown;
+  supportAmountCents?: unknown;
 };
 
 class InvalidCampaignError extends Error {}
@@ -75,14 +78,28 @@ export async function POST(request: Request) {
       throw new InvalidCampaignError("Place the restroom pin before continuing.");
     }
 
-    const radiusMiles = Math.max(1, Math.min(15, Number(body.radiusMiles) || 5));
-    const radiusMeters = Math.round(radiusMiles * 1609.344);
     const offer = getAdvertisingOffer();
+    const defaultRadiusMiles = offer.defaultRadiusMeters / 1609.344;
+    const radiusMiles = Math.max(1, Math.min(15, Number(body.radiusMiles) || defaultRadiusMiles));
+    const radiusMeters = Math.round(radiusMiles * 1609.344);
     const requestedBid = Number(body.placementBidCents);
     const placementBidCents = Number.isFinite(requestedBid)
       ? Math.max(0, Math.min(offer.maxPlacementBidCents, Math.round(requestedBid)))
       : 0;
-    const totalPriceCents = offer.priceCents + placementBidCents;
+    const requestedSupportAmount = Number(body.supportAmountCents ?? 0);
+    if (!Number.isInteger(requestedSupportAmount) || requestedSupportAmount < 0 || requestedSupportAmount > 100_000) {
+      throw new InvalidCampaignError("Project support must be between $0 and $1,000.");
+    }
+    let hoursSchedule;
+    try {
+      hoursSchedule = normalizeHoursSchedule(body.hoursSchedule, false);
+    } catch (error) {
+      if (error instanceof InvalidHoursSchedule) throw new InvalidCampaignError(error.message);
+      throw error;
+    }
+    const timezone = hoursSchedule.mode === "scheduled" ? timeZoneAt(latitude, longitude) : null;
+    const supportAmountCents = requestedSupportAmount;
+    const totalPriceCents = offer.priceCents + placementBidCents + supportAmountCents;
     const campaign = {
       created_by: authData.user.id,
       business_name: textField(body.businessName, "Business name", 2, 120),
@@ -90,7 +107,10 @@ export async function POST(request: Request) {
       address: textField(body.address, "Address", 5, 240),
       latitude,
       longitude,
-      hours: textField(body.hours, "Hours", 0, 160, false) || null,
+      hours: formatHoursSchedule(hoursSchedule),
+      hours_schedule_status: hoursSchedule.mode,
+      timezone,
+      weekly_hours: hoursSchedule.periods,
       directions: textField(body.directions, "Directions", 0, 500, false) || null,
       headline: textField(body.headline, "Headline", 4, 100),
       offer_text: textField(body.offerText, "Offer", 4, 280),
@@ -100,6 +120,7 @@ export async function POST(request: Request) {
       radius_meters: radiusMeters,
       price_cents: offer.priceCents,
       placement_bid_cents: placementBidCents,
+      support_amount_cents: supportAmountCents,
       currency: "usd",
       duration_days: offer.durationDays,
       status: "pending_payment",
@@ -141,6 +162,19 @@ export async function POST(request: Request) {
         },
       });
     }
+    if (supportAmountCents > 0) {
+      lineItems.push({
+        quantity: 1,
+        price_data: {
+          currency: "usd",
+          unit_amount: supportAmountCents,
+          product_data: {
+            name: "Support IWANNAPEE",
+            description: "Optional project support for better restroom data and map improvements",
+          },
+        },
+      });
+    }
 
     try {
       const session = await stripe.checkout.sessions.create(
@@ -156,6 +190,7 @@ export async function POST(request: Request) {
             campaign_id: createdCampaign.id,
             user_id: authData.user.id,
             placement_bid_cents: String(placementBidCents),
+            support_amount_cents: String(supportAmountCents),
             total_price_cents: String(totalPriceCents),
           },
           payment_intent_data: {
@@ -163,6 +198,7 @@ export async function POST(request: Request) {
               campaign_id: createdCampaign.id,
               user_id: authData.user.id,
               placement_bid_cents: String(placementBidCents),
+              support_amount_cents: String(supportAmountCents),
             },
           },
         },
