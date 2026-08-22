@@ -14,7 +14,7 @@ Open [http://localhost:3000](http://localhost:3000). Public Photon, Overpass, an
 ## Connect Supabase
 
 1. Create a Supabase project.
-2. Run every file in `supabase/migrations/` in filename order through `006_restroom_import_provenance.sql`, or link the correct Supabase project and run `supabase db push`.
+2. Run every file in `supabase/migrations/` in filename order through `007_rate_limit_timestamp_fix.sql`, or link the correct Supabase project and run `supabase db push`.
 3. Optionally run `supabase/seed.sql`. The seed records are illustrative and must be verified before public launch.
 4. Copy `.env.example` to `.env.local` and provide:
 

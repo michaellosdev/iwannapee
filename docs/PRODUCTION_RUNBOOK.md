@@ -1,7 +1,7 @@
 # IWANNAPEE production runbook
 
 This is the launch order for `https://www.iwannapee.lol`. Do not deploy the
-protected mutation routes before migrations `005` and `006` are available: the
+protected mutation routes before migrations `005` through `007` are available: the
 routes deliberately fail closed when durable request limiting is unavailable.
 
 ## 1. Required production variables
@@ -48,7 +48,7 @@ Never add `SUPABASE_DB_URL`, restore-test credentials, or
 
 ## 2. Supabase
 
-1. Run migrations `001` through `006` in filename order.
+1. Run migrations `001` through `007` in filename order.
 2. Confirm `request_rate_limits`, `stripe_webhook_events`,
    `restroom_source_records`, and the three Storage buckets exist.
 3. Set the owner profile role to `owner`. `OWNER_EMAILS` remains the independent
