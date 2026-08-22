@@ -53,6 +53,7 @@ import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
 import { demoRestrooms, DEFAULT_LOCATION } from "@/lib/demo-restrooms";
 import { distanceInMeters, formatDistance } from "@/lib/distance";
 import { createPromotionViewId, recordPromotionActivity, type PromotionActivityType } from "@/lib/promotion-activity";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/client";
 import type { Coordinates, LocationSearchResult, Restroom, RestroomFeature } from "@/types/restroom";
 
@@ -1015,7 +1016,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
         <div className="site-footer-content">
           <a className="brand brand-footer" href="#top" aria-label="IWANNAPEE home"><span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-mark.png" width={512} /></span><span>IWANNAPEE</span></a>
           <p>Everyone deserves dignified access to a restroom.</p>
-          <nav className="site-footer-links" aria-label="Footer"><button onClick={openAccount}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></nav>
+          <nav className="site-footer-links" aria-label="Footer"><button onClick={openAccount}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Business promotion</button><a href="/terms">Terms</a><a href="/refund-policy">Refund Policy</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/copyright" rel="noreferrer" target="_blank">© OpenStreetMap contributors</a><a href="https://www.refugerestrooms.org/" rel="noreferrer" target="_blank">Supporting data: REFUGE Restrooms</a><a href="https://www.geoapify.com/" rel="noreferrer" target="_blank">Addresses powered by Geoapify</a></nav>
         </div>
         <SiteAttribution />
       </footer>

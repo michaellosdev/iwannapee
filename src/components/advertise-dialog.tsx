@@ -21,6 +21,7 @@ import { CaptchaWidget } from "@/components/captcha-widget";
 import { WeeklyHoursEditor } from "@/components/weekly-hours-editor";
 import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
 import { createHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import type { Coordinates, LocationSearchResult } from "@/types/restroom";
 
 type AdvertiseDialogProps = {
@@ -64,6 +65,7 @@ export function AdvertiseDialog({
   const [placementBidCents, setPlacementBidCents] = useState(0);
   const [supportAmount, setSupportAmount] = useState("");
   const [confirmedPublic, setConfirmedPublic] = useState(false);
+  const [confirmedTerms, setConfirmedTerms] = useState(false);
   const [status, setStatus] = useState<"idle" | "locating" | "checkout">("idle");
   const [error, setError] = useState("");
   const [captchaReady, setCaptchaReady] = useState(false);
@@ -111,6 +113,10 @@ export function AdvertiseDialog({
     }
     if (!confirmedPublic) {
       setError("Confirm that customers may genuinely use this restroom.");
+      return;
+    }
+    if (!confirmedTerms) {
+      setError("Agree to the Terms and Refund Policy before opening checkout.");
       return;
     }
     if (!coordinates) {
@@ -321,12 +327,17 @@ export function AdvertiseDialog({
               <span>I confirm this restroom is genuinely available during the hours shown and that the offer is accurate.</span>
             </label>
 
+            <label className="promotion-confirmation promotion-terms-confirmation">
+              <input checked={confirmedTerms} onChange={(event) => setConfirmedTerms(event.target.checked)} required type="checkbox" />
+              <span>I agree to the <a href="/terms" rel="noreferrer" target="_blank">Terms</a> and <a href="/refund-policy" rel="noreferrer" target="_blank">Refund Policy</a>, including that purchases are final after activation and only an IWANNAPEE administrator can approve a refund.</span>
+            </label>
+
             <CaptchaWidget onVerified={setCaptchaReady} />
             {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="button button-primary button-full promotion-checkout-button" disabled={status === "checkout" || !captchaReady}>
+            <button className="button button-primary button-full promotion-checkout-button" disabled={status === "checkout" || !captchaReady || !confirmedPublic || !confirmedTerms}>
               <BadgeDollarSign size={19} /> {status === "checkout" ? "Opening secure checkout…" : `Pay ${formatPrice(totalPriceCents)} & launch for ${offer.durationDays} days`}
             </button>
-            <p className="promotion-payment-note"><ShieldCheck size={14} /> Stripe shows the base listing and placement bid separately. Campaign details can’t be activated from the browser.</p>
+            <p className="promotion-payment-note"><ShieldCheck size={14} /> Stripe shows each purchase item separately. Campaign details can’t be activated from the browser. Payment support: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
           </form>
         </div>
 
