@@ -42,7 +42,7 @@ export function SubmitRestroomDialog({
   const [features, setFeatures] = useState<RestroomFeature[]>(["Free"]);
   const [photo, setPhoto] = useState<File | null>(null);
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const [locationLabel, setLocationLabel] = useState("Using your current map location");
+  const [locationLabel, setLocationLabel] = useState("Choose an address suggestion or place the pin");
   const [status, setStatus] = useState<"idle" | "locating" | "submitting" | "success">("idle");
   const [error, setError] = useState("");
   const [captchaReady, setCaptchaReady] = useState(false);
@@ -89,6 +89,10 @@ export function SubmitRestroomDialog({
       onNeedsAuth();
       return;
     }
+    if (!coordinates) {
+      setError("Choose an address suggestion or select Place pin before submitting.");
+      return;
+    }
 
     try {
       normalizeHoursSchedule(hoursSchedule, true);
@@ -120,8 +124,8 @@ export function SubmitRestroomDialog({
       body: JSON.stringify({
         name,
         address,
-        latitude: (coordinates || currentLocation).latitude,
-        longitude: (coordinates || currentLocation).longitude,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
         hoursSchedule,
         directions,
         accessCode,

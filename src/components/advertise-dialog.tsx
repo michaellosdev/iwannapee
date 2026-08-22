@@ -53,7 +53,7 @@ export function AdvertiseDialog({
   const [qrTargetUrl, setQrTargetUrl] = useState("");
   const [destinationUrl, setDestinationUrl] = useState("");
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const [locationLabel, setLocationLabel] = useState("Using your current map location");
+  const [locationLabel, setLocationLabel] = useState("Choose an address suggestion or place the pin");
   const [radiusMiles, setRadiusMiles] = useState(
     radiusOptions.reduce((closest, option) =>
       Math.abs(option - offer.defaultRadiusMeters / 1609.344) < Math.abs(closest - offer.defaultRadiusMeters / 1609.344)
@@ -113,6 +113,10 @@ export function AdvertiseDialog({
       setError("Confirm that customers may genuinely use this restroom.");
       return;
     }
+    if (!coordinates) {
+      setError("Choose an address suggestion or select Place pin before opening checkout.");
+      return;
+    }
     try {
       normalizeHoursSchedule(hoursSchedule, false);
     } catch (hoursError) {
@@ -125,7 +129,6 @@ export function AdvertiseDialog({
     }
 
     setStatus("checkout");
-    const pinnedCoordinates = coordinates || currentLocation;
     try {
       const response = await fetch("/api/business/checkout", {
         method: "POST",
@@ -134,8 +137,8 @@ export function AdvertiseDialog({
           businessName,
           restroomName,
           address,
-          latitude: pinnedCoordinates.latitude,
-          longitude: pinnedCoordinates.longitude,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
           hoursSchedule,
           directions,
           headline,
