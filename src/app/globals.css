@@ -79,24 +79,19 @@ a {
 
 .brand-mark {
   align-items: center;
-  background: var(--blue);
-  border-radius: 50% 50% 45% 55%;
-  color: white;
   display: inline-flex;
-  height: 38px;
+  flex: 0 0 auto;
+  height: 42px;
   justify-content: center;
   margin-right: 9px;
-  transform: rotate(-5deg);
-  width: 38px;
+  width: 42px;
 }
 
-.brand-mark svg {
-  transform: rotate(5deg);
-}
-
-.brand-number {
-  color: var(--blue);
-  padding: 0 1px;
+.brand-mark img {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
 }
 
 .main-nav {
@@ -1971,8 +1966,8 @@ footer {
 }
 
 .brand-footer .brand-mark {
-  height: 31px;
-  width: 31px;
+  height: 34px;
+  width: 34px;
 }
 
 footer p {
@@ -3014,8 +3009,8 @@ footer button {
   }
 
   .brand-mark {
-    height: 34px;
-    width: 34px;
+    height: 38px;
+    width: 38px;
   }
 
   .button-header {

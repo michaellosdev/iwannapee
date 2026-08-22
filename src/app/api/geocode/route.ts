@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     }
 
     const response = await fetch(endpoint, {
-      headers: { "User-Agent": "Right2Pee/0.1 (+https://iwannapee.lol)" },
+      headers: { "User-Agent": "IWANNAPEE/0.1 (+https://www.iwannapee.lol)" },
       next: { revalidate: 86_400 },
       signal: AbortSignal.timeout(10_000),
     });

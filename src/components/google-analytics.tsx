@@ -3,8 +3,9 @@
 import Script from "next/script";
 import { useEffect, useState } from "react";
 
-const CONSENT_STORAGE_KEY = "right2pee_analytics_consent";
-const PRIVACY_SETTINGS_EVENT = "right2pee:open-privacy-settings";
+const CONSENT_STORAGE_KEY = "iwannapee_analytics_consent";
+const LEGACY_CONSENT_STORAGE_KEY = "right2pee_analytics_consent";
+const PRIVACY_SETTINGS_EVENT = "iwannapee:open-privacy-settings";
 
 type AnalyticsConsent = "accepted" | "declined" | "unknown";
 
@@ -41,7 +42,8 @@ export function GoogleAnalytics({ measurementId }: { measurementId?: string }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
-    const storedConsent = window.localStorage.getItem(CONSENT_STORAGE_KEY);
+    const storedConsent = window.localStorage.getItem(CONSENT_STORAGE_KEY)
+      || window.localStorage.getItem(LEGACY_CONSENT_STORAGE_KEY);
     const initialConsent: AnalyticsConsent = storedConsent === "accepted" || storedConsent === "declined"
       ? storedConsent
       : "unknown";
@@ -77,17 +79,17 @@ export function GoogleAnalytics({ measurementId }: { measurementId?: string }) {
 
   return (
     <>
-      <Script id="right2pee-ga4-consent-default" strategy="afterInteractive">
+      <Script id="iwannapee-ga4-consent-default" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
-          var right2peeConsent = window.localStorage.getItem('${CONSENT_STORAGE_KEY}');
-          var right2peeConsentValue = right2peeConsent === 'accepted' ? 'granted' : 'denied';
+          var iwannapeeConsent = window.localStorage.getItem('${CONSENT_STORAGE_KEY}') || window.localStorage.getItem('${LEGACY_CONSENT_STORAGE_KEY}');
+          var iwannapeeConsentValue = iwannapeeConsent === 'accepted' ? 'granted' : 'denied';
           gtag('consent', 'default', {
-            ad_personalization: right2peeConsentValue,
-            ad_storage: right2peeConsentValue,
-            ad_user_data: right2peeConsentValue,
-            analytics_storage: right2peeConsentValue
+            ad_personalization: iwannapeeConsentValue,
+            ad_storage: iwannapeeConsentValue,
+            ad_user_data: iwannapeeConsentValue,
+            analytics_storage: iwannapeeConsentValue
           });
         `}
       </Script>
@@ -95,7 +97,7 @@ export function GoogleAnalytics({ measurementId }: { measurementId?: string }) {
         src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
         strategy="afterInteractive"
       />
-      <Script id="right2pee-ga4" strategy="afterInteractive">
+      <Script id="iwannapee-ga4" strategy="afterInteractive">
         {`
           gtag('js', new Date());
           gtag('config', '${measurementId}');

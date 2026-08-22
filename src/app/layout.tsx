@@ -1,25 +1,49 @@
 import type { Metadata, Viewport } from "next";
 import { GoogleAnalytics } from "@/components/google-analytics";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
+const googleSiteVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://iwannapee.lol"),
-  title: "Right2Pee — Find a public restroom near you",
-  description: "Community-verified public restrooms with access codes, directions, photos, accessibility details, and cleanliness ratings.",
-  applicationName: "Right2Pee",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — Find Public Restrooms Near You`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
   alternates: { canonical: "/" },
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/brand/iwannapee-mark.png", sizes: "512x512", type: "image/png" }],
+    apple: [{ url: "/brand/iwannapee-mark.png", sizes: "512x512", type: "image/png" }],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  verification: googleSiteVerification ? { google: googleSiteVerification } : undefined,
   openGraph: {
-    title: "Right2Pee — Find a public restroom near you",
-    description: "Find and rate public restrooms worldwide, including cleanliness, accessibility, access details, and directions.",
-    siteName: "Right2Pee",
+    title: `${SITE_NAME} — Find Public Restrooms Near You`,
+    description: SITE_DESCRIPTION,
+    siteName: SITE_NAME,
     type: "website",
     url: "/",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Right2Pee — Find a public restroom near you",
-    description: "Find and rate public restrooms worldwide.",
+    title: `${SITE_NAME} — Find Public Restrooms Near You`,
+    description: SITE_DESCRIPTION,
   },
 };
 

@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Stripe from "stripe";
 import { ArrowRight, CheckCircle2, CircleAlert } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Advertising payment status",
+  robots: { index: false, follow: false },
+};
 
 export default async function AdvertisingSuccessPage({
   searchParams,
@@ -12,18 +19,29 @@ export default async function AdvertisingSuccessPage({
 }) {
   const { session_id: sessionId } = await searchParams;
   let active = false;
+  const supabase = await createClient();
+  const { data: authData } = supabase
+    ? await supabase.auth.getUser()
+    : { data: { user: null } };
 
-  if (sessionId && process.env.STRIPE_SECRET_KEY) {
+  if (sessionId && process.env.STRIPE_SECRET_KEY && authData.user) {
     try {
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { maxNetworkRetries: 2 });
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       const campaignId = session.metadata?.campaign_id;
       const admin = createAdminClient();
-      if (session.payment_status === "paid" && campaignId && admin) {
+      if (
+        session.mode === "payment"
+        && session.payment_status === "paid"
+        && session.metadata?.user_id === authData.user.id
+        && campaignId
+        && admin
+      ) {
         const { data } = await admin
           .from("advertising_campaigns")
           .select("status")
           .eq("id", campaignId)
+          .eq("created_by", authData.user.id)
           .single();
         active = data?.status === "active";
       }

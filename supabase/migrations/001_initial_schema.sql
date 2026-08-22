@@ -1,4 +1,4 @@
--- Right2Pee initial data model.
+-- IWANNAPEE initial data model.
 -- Run with `supabase db push` or paste into the Supabase SQL editor.
 
 create extension if not exists pgcrypto;

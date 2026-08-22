@@ -646,9 +646,9 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
   return (
     <main>
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="Right to Pee home">
-          <span className="brand-mark"><Droplets size={21} fill="currentColor" /></span>
-          <span>RIGHT<span className="brand-number">2</span>PEE</span>
+        <a className="brand" href="#top" aria-label="IWANNAPEE home">
+          <span className="brand-mark"><Image alt="" height={512} priority src="/brand/iwannapee-mark.png" width={512} /></span>
+          <span>IWANNAPEE</span>
         </a>
         <nav className={mobileNavOpen ? "main-nav open" : "main-nav"} aria-label="Main navigation">
           <a href="#find" onClick={() => setMobileNavOpen(false)}>Find a restroom</a>
@@ -684,7 +684,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
         </div>
         <div className="hero-content">
           <div className="hero-proof"><ShieldCheck size={15} /><span>Community-powered restroom access</span></div>
-          <h1>You have the right<br />to <em>pee.</em></h1>
+          <h1>You have the right<br />{" "}to <em>pee.</em></h1>
           <p>Find a clean, accessible public restroom near you—without guessing, begging, or buying something you don’t need.</p>
 
           <div className="hero-search-wrap">
@@ -790,7 +790,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
         <div className="how-copy">
           <p className="eyebrow">Built for real life</p>
           <h2>Better bathroom information, one visit at a time.</h2>
-          <p>Right2Pee turns small community updates into something genuinely useful—especially for parents, disabled people, delivery workers, travelers, and anyone who simply needs to go.</p>
+          <p>IWANNAPEE turns small community updates into something genuinely useful—especially for parents, disabled people, delivery workers, travelers, and anyone who simply needs to go.</p>
           <button className="button button-primary" onClick={beginSubmission}><Plus size={18} /> Add a restroom</button>
         </div>
         <div className="how-steps">
@@ -814,7 +814,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
             <span className="advertising-demo-business">JUNIPER COFFEE</span>
             <h3>Come for relief. Stay for 10% off.</h3>
             <p>Our restroom is available during business hours. Show this offer for 10% off any drink.</p>
-            <div><span><small>Promo code</small><strong>RELIEF10</strong></span><QRCodeSVG bgColor="#ffffff" fgColor="#17231d" level="M" marginSize={1} size={82} value="https://right2pee.example/offer" /></div>
+            <div><span><small>Promo code</small><strong>RELIEF10</strong></span><QRCodeSVG bgColor="#ffffff" fgColor="#17231d" level="M" marginSize={1} size={82} value="https://www.iwannapee.lol/?offer=RELIEF10" /></div>
           </div>
           <p><Gavel size={15} /> Higher one-time bids rank first; distance breaks ties.</p>
         </div>
@@ -827,7 +827,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
       </section>
 
       <footer>
-        <a className="brand brand-footer" href="#top"><span className="brand-mark"><Droplets size={18} fill="currentColor" /></span>RIGHT<span className="brand-number">2</span>PEE</a>
+        <a className="brand brand-footer" href="#top" aria-label="IWANNAPEE home"><span className="brand-mark"><Image alt="" height={512} src="/brand/iwannapee-mark.png" width={512} /></span><span>IWANNAPEE</span></a>
         <p>Everyone deserves dignified access to a restroom.</p>
         <div><button onClick={() => setAuthOpen(true)}>Account</button><a href="#world-rankings">Rankings</a><button onClick={beginSubmission}>Contribute</button><button onClick={beginAdvertising}>Advertise</button>{process.env.NEXT_PUBLIC_GA4_ID && <button onClick={openPrivacySettings}>Privacy settings</button>}<a href="https://www.openstreetmap.org/about" rel="noreferrer" target="_blank">Data source</a></div>
       </footer>

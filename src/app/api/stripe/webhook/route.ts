@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 async function activateCampaign(session: Stripe.Checkout.Session) {
-  if (session.payment_status !== "paid") return;
+  if (session.mode !== "payment" || session.payment_status !== "paid") return;
   const campaignId = session.metadata?.campaign_id;
   if (!campaignId) return;
 
@@ -12,7 +12,7 @@ async function activateCampaign(session: Stripe.Checkout.Session) {
 
   const { data: campaign, error } = await admin
     .from("advertising_campaigns")
-    .select("id,duration_days,status,price_cents,placement_bid_cents,currency,stripe_checkout_session_id")
+    .select("id,created_by,duration_days,status,price_cents,placement_bid_cents,currency,stripe_checkout_session_id")
     .eq("id", campaignId)
     .single();
   if (error || !campaign || campaign.status !== "pending_payment") return;
@@ -23,13 +23,16 @@ async function activateCampaign(session: Stripe.Checkout.Session) {
     || session.id !== campaign.stripe_checkout_session_id
     || session.amount_total !== expectedAmount
     || session.currency !== campaign.currency
+    || session.metadata?.user_id !== campaign.created_by
+    || session.metadata?.placement_bid_cents !== String(campaign.placement_bid_cents)
+    || session.metadata?.total_price_cents !== String(expectedAmount)
   ) {
     throw new Error("Paid Checkout Session does not match the campaign total");
   }
 
   const startsAt = new Date();
   const endsAt = new Date(startsAt.getTime() + campaign.duration_days * 24 * 60 * 60 * 1000);
-  await admin
+  const { error: activationError } = await admin
     .from("advertising_campaigns")
     .update({
       status: "active",
@@ -41,6 +44,7 @@ async function activateCampaign(session: Stripe.Checkout.Session) {
     })
     .eq("id", campaignId)
     .eq("status", "pending_payment");
+  if (activationError) throw activationError;
 }
 
 async function cancelPendingCampaign(session: Stripe.Checkout.Session) {
@@ -48,11 +52,47 @@ async function cancelPendingCampaign(session: Stripe.Checkout.Session) {
   if (!campaignId) return;
   const admin = createAdminClient();
   if (!admin) throw new Error("Supabase secret key is not configured");
-  await admin
+  const { error } = await admin
     .from("advertising_campaigns")
     .update({ status: "cancelled", updated_at: new Date().toISOString() })
     .eq("id", campaignId)
     .eq("status", "pending_payment");
+  if (error) throw error;
+}
+
+function paymentIntentId(value: string | Stripe.PaymentIntent | null) {
+  return typeof value === "string" ? value : value?.id || null;
+}
+
+async function markFullyRefunded(charge: Stripe.Charge) {
+  if (!charge.refunded) return;
+  const intentId = paymentIntentId(charge.payment_intent);
+  if (!intentId) return;
+  const admin = createAdminClient();
+  if (!admin) throw new Error("Supabase secret key is not configured");
+
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("advertising_campaigns")
+    .update({ status: "refunded", payment_refunded_at: now, updated_at: now })
+    .eq("stripe_payment_intent_id", intentId)
+    .in("status", ["active", "expired", "disputed"]);
+  if (error) throw error;
+}
+
+async function markDisputed(dispute: Stripe.Dispute) {
+  const intentId = paymentIntentId(dispute.payment_intent);
+  if (!intentId) return;
+  const admin = createAdminClient();
+  if (!admin) throw new Error("Supabase secret key is not configured");
+
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("advertising_campaigns")
+    .update({ status: "disputed", payment_disputed_at: now, updated_at: now })
+    .eq("stripe_payment_intent_id", intentId)
+    .in("status", ["active", "expired"]);
+  if (error) throw error;
 }
 
 export async function POST(request: Request) {
@@ -64,7 +104,7 @@ export async function POST(request: Request) {
   }
 
   const payload = await request.text();
-  const stripe = new Stripe(stripeSecret);
+  const stripe = new Stripe(stripeSecret, { maxNetworkRetries: 2 });
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
@@ -77,9 +117,18 @@ export async function POST(request: Request) {
       await activateCampaign(event.data.object);
     } else if (event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed") {
       await cancelPendingCampaign(event.data.object);
+    } else if (event.type === "charge.refunded") {
+      await markFullyRefunded(event.data.object);
+    } else if (event.type === "charge.dispute.created") {
+      await markDisputed(event.data.object);
     }
     return NextResponse.json({ received: true });
-  } catch {
+  } catch (error) {
+    console.error("Stripe webhook processing failed", {
+      eventId: event.id,
+      eventType: event.type,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json({ error: "Webhook processing failed." }, { status: 500 });
   }
 }

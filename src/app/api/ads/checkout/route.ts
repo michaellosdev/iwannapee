@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       .single();
     if (insertError || !createdCampaign) throw new Error("Could not save campaign");
 
-    const stripe = new Stripe(stripeSecret);
+    const stripe = new Stripe(stripeSecret, { maxNetworkRetries: 2 });
     const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
     const siteUrl = configuredSiteUrl?.startsWith("http") ? configuredSiteUrl.replace(/\/$/, "") : new URL(request.url).origin;
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
           currency: "usd",
           unit_amount: offer.priceCents,
           product_data: {
-            name: "Right2Pee sponsored restroom listing",
+            name: "IWANNAPEE sponsored restroom listing",
             description: `${offer.durationDays}-day location-based promotion for ${campaign.business_name}`,
           },
         },
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
           currency: "usd",
           unit_amount: placementBidCents,
           product_data: {
-            name: "Right2Pee priority placement bid",
+            name: "IWANNAPEE priority placement bid",
             description: "One-time bid for ranking within eligible local sponsored slots",
           },
         },
@@ -130,27 +130,30 @@ export async function POST(request: Request) {
     }
 
     try {
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        client_reference_id: createdCampaign.id,
-        customer_email: authData.user.email,
-        success_url: `${siteUrl}/advertise/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${siteUrl}/?advertise=1&checkout=cancelled`,
-        line_items: lineItems,
-        metadata: {
-          campaign_id: createdCampaign.id,
-          user_id: authData.user.id,
-          placement_bid_cents: String(placementBidCents),
-          total_price_cents: String(totalPriceCents),
-        },
-        payment_intent_data: {
+      const session = await stripe.checkout.sessions.create(
+        {
+          mode: "payment",
+          client_reference_id: createdCampaign.id,
+          customer_email: authData.user.email,
+          success_url: `${siteUrl}/advertise/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${siteUrl}/?advertise=1&checkout=cancelled`,
+          line_items: lineItems,
           metadata: {
             campaign_id: createdCampaign.id,
             user_id: authData.user.id,
             placement_bid_cents: String(placementBidCents),
+            total_price_cents: String(totalPriceCents),
+          },
+          payment_intent_data: {
+            metadata: {
+              campaign_id: createdCampaign.id,
+              user_id: authData.user.id,
+              placement_bid_cents: String(placementBidCents),
+            },
           },
         },
-      });
+        { idempotencyKey: `iwannapee-checkout-${createdCampaign.id}` },
+      );
 
       const { error: sessionUpdateError } = await admin
         .from("advertising_campaigns")
