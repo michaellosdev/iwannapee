@@ -62,6 +62,7 @@ export function checkoutSessionMatchesSite(
 ) {
   return session.livemode === stripeKeyIsLive(stripeSecret)
     && session.allow_promotion_codes === true
+    && session.consent_collection?.terms_of_service === "required"
     && session.success_url === `${siteUrl}/business/success?session_id={CHECKOUT_SESSION_ID}`
     && session.cancel_url === `${siteUrl}/business`;
 }
@@ -128,6 +129,9 @@ export async function createPromotionCheckoutSession({
       client_reference_id: campaign.id,
       customer_email: customerEmail,
       allow_promotion_codes: true,
+      consent_collection: {
+        terms_of_service: "required",
+      },
       success_url: `${siteUrl}/business/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/business`,
       line_items: lineItems,
