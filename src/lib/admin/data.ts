@@ -10,7 +10,7 @@ export async function getAdminDashboardData() {
     admin.from("profiles").select("id,display_name,role,is_moderator,created_at").order("created_at", { ascending: false }).limit(200),
     admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
     admin.from("restrooms").select("id,name,address,description,directions,hours,hours_schedule_status,timezone,weekly_hours,latitude,longitude,is_open_now,access_code,access_instructions,cover_photo_url,features,created_by,created_at,status,data_source,source_url,last_verified_at").eq("status", "pending").order("created_at", { ascending: true }).limit(100),
-    admin.from("restroom_updates").select("id,restroom_id,user_id,update_type,proposed_value,status,created_at").eq("status", "pending").order("created_at", { ascending: true }).limit(100),
+    admin.from("restroom_updates").select("id,restroom_id,user_id,update_type,proposed_value,status,upvote_count,downvote_count,created_at").eq("status", "pending").order("upvote_count", { ascending: false }).order("created_at", { ascending: true }).limit(100),
     admin.from("reports").select("id,restroom_id,user_id,reason,details,status,created_at").eq("status", "open").order("created_at", { ascending: true }).limit(100),
     admin.from("advertising_campaigns").select("id,created_by,business_name,restroom_name,address,headline,offer_text,placement_bid_cents,status,is_test,starts_at,ends_at,created_at").order("created_at", { ascending: false }).limit(100),
     admin.from("community_photos").select("id,restroom_id,review_id,user_id,public_url,caption,status,created_at").eq("status", "pending").order("created_at", { ascending: true }).limit(100),

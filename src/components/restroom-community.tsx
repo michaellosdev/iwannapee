@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { BadgeCheck, Camera, Check, CircleHelp, Droplets, ExternalLink, Images, Star, X } from "lucide-react";
 import { CaptchaWidget } from "@/components/captcha-widget";
 import { CommunityNotes, type CommunityNote } from "@/components/community-notes";
+import { CommunityUpdates, type CommunityUpdate } from "@/components/community-updates";
 import { PhotoUploadError, uploadPhotos, validatePhotoFiles } from "@/lib/photo-upload";
 import type { Restroom } from "@/types/restroom";
 
@@ -35,6 +36,7 @@ type CommunityDetails = {
     confirmationCount: number;
     notFoundCount: number;
   };
+  updates: CommunityUpdate[];
   photos: CommunityPhoto[];
   reviews: CommunityReview[];
   notes: CommunityNote[];
@@ -117,6 +119,7 @@ export function RestroomCommunity({
   const verified = Boolean(verification.verifiedAt && verification.confirmationCount > verification.notFoundCount);
   const needsReview = !verified && verification.notFoundCount > verification.confirmationCount;
   const source = sourceLabel(verification.dataSource);
+  const hoursMissing = !restroom.hours || /hours\s+(?:not|unknown)|not\s+(?:listed|confirmed|verified)/i.test(restroom.hours);
 
   function chooseVerification(verdict: "confirmed" | "not_found") {
     if (!user) {
@@ -219,6 +222,18 @@ export function RestroomCommunity({
           {formError && <p className="form-error" role="alert">{formError}</p>}
           <div><button className="button button-ghost" onClick={() => setVerificationChoice(null)} type="button">Cancel</button><button className="button button-primary" disabled={!verificationCaptchaReady || verificationWorking} onClick={submitVerification} type="button">{verificationWorking ? "Saving…" : "Submit verification"}</button></div>
         </div>
+      )}
+
+      {canLoad && (
+        <CommunityUpdates
+          defaultType={hoursMissing ? "hours" : "description"}
+          onNeedsAuth={onNeedsAuth}
+          onNotify={onNotify}
+          onReload={loadDetails}
+          restroomId={restroomId}
+          updates={details?.updates || []}
+          user={user}
+        />
       )}
 
       <div className="community-section-heading">

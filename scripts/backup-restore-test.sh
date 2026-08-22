@@ -68,7 +68,8 @@ counts_sql="select jsonb_build_object(
   'restroom_verifications', (select count(*) from public.restroom_verifications),
   'community_photos', (select count(*) from public.community_photos),
   'community_notes', (select count(*) from public.community_notes),
-  'community_note_votes', (select count(*) from public.community_note_votes)
+  'community_note_votes', (select count(*) from public.community_note_votes),
+  'restroom_update_votes', (select count(*) from public.restroom_update_votes)
 )::text;"
 source_counts="$(psql "$source_database_url" -X -A -t -v ON_ERROR_STOP=1 -c "$counts_sql")"
 restore_counts="$(psql "$restore_database_url" -X -A -t -v ON_ERROR_STOP=1 -c "$counts_sql")"

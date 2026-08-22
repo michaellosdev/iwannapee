@@ -32,7 +32,7 @@ type AdminRestroom = {
 type DashboardData = {
   profiles: Array<{ id: string; display_name: string | null; email: string; role: string; is_moderator: boolean; created_at: string }>;
   restrooms: AdminRestroom[];
-  updates: Array<{ id: string; restroom_id: string; restroom_name: string; update_type: string; proposed_value: string; created_at: string }>;
+  updates: Array<{ id: string; restroom_id: string; restroom_name: string; update_type: string; proposed_value: string; upvote_count: number; downvote_count: number; created_at: string }>;
   reports: Array<{ id: string; restroom_id: string; restroom_name: string; reason: string; details: string | null; created_at: string }>;
   campaigns: Array<{ id: string; business_name: string; restroom_name: string; address: string; headline: string; offer_text: string; placement_bid_cents: number; status: string; is_test: boolean; starts_at: string | null; ends_at: string | null; created_at: string }>;
   photos: Array<{ id: string; restroom_id: string; restroom_name: string; review_id: string | null; user_id: string; contributor: string; public_url: string; caption: string | null; status: string; created_at: string }>;
@@ -151,7 +151,7 @@ export function AdminDashboard({ currentUserId, initialData }: { currentUserId: 
         <div className="admin-grid admin-grid-compact">
           {initialData.updates.map((update) => (
             <article className="admin-card" key={update.id}>
-              <small>Suggested {update.update_type}</small><h3>{update.restroom_name}</h3><p>{update.proposed_value}</p>
+              <small>Suggested {update.update_type} · {update.upvote_count} up · {update.downvote_count} down</small><h3>{update.restroom_name}</h3><p>{update.proposed_value}</p>
               <div className="admin-actions"><button onClick={() => runAction("update_status", { id: update.id, status: "accepted" })}><Check size={15} /> Apply</button><button onClick={() => runAction("update_status", { id: update.id, status: "rejected" })}><X size={15} /> Reject</button></div>
             </article>
           ))}

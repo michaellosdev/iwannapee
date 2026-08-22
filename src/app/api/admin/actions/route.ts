@@ -1,6 +1,8 @@
 import { getOwnerAccess } from "@/lib/admin/authorization";
 import { getAdvertisingOffer } from "@/lib/advertising";
+import { formatHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
+import { timeZoneAt } from "@/lib/server/timezone";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -57,12 +59,39 @@ export async function POST(request: Request) {
       const id = validId(body?.id);
       const status = body?.status === "accepted" || body?.status === "rejected" ? body.status : null;
       if (!id || !status) throw new Error("Invalid correction action");
-      const { data: update, error: readError } = await admin.from("restroom_updates").select("restroom_id,update_type,proposed_value,status").eq("id", id).single();
+      const { data: update, error: readError } = await admin.from("restroom_updates").select("restroom_id,update_type,proposed_value,proposed_payload,status").eq("id", id).single();
       if (readError || !update || update.status !== "pending") throw readError || new Error("Correction is no longer pending");
       if (status === "accepted") {
-        const change = update.update_type === "code" ? { access_code: update.proposed_value }
-          : update.update_type === "hours" ? { hours: update.proposed_value, hours_schedule_status: "unknown", timezone: null, weekly_hours: [], is_open_now: null }
+        const { data: targetRestroom, error: restroomReadError } = await admin
+          .from("restrooms")
+          .select("latitude,longitude,features")
+          .eq("id", update.restroom_id)
+          .single();
+        if (restroomReadError || !targetRestroom) throw restroomReadError || new Error("Restroom is no longer available");
+        const payload = update.proposed_payload as { hoursSchedule?: unknown } | null;
+        const hoursSchedule = update.update_type === "hours" && payload?.hoursSchedule
+          ? normalizeHoursSchedule(payload.hoursSchedule, false)
+          : null;
+        const change = update.update_type === "code" ? {
+            access_code: update.proposed_value,
+            features: Array.from(new Set([...(targetRestroom.features || []), "Code available"])),
+          }
+          : update.update_type === "hours" ? (hoursSchedule ? {
+                hours: formatHoursSchedule(hoursSchedule),
+                hours_schedule_status: hoursSchedule.mode,
+                timezone: hoursSchedule.mode === "scheduled" ? timeZoneAt(targetRestroom.latitude, targetRestroom.longitude) : null,
+                weekly_hours: hoursSchedule.periods,
+                is_open_now: null,
+              } : {
+                hours: update.proposed_value,
+                hours_schedule_status: "unknown",
+                timezone: null,
+                weekly_hours: [],
+                is_open_now: null,
+              })
           : update.update_type === "access" ? { access_instructions: update.proposed_value }
+          : update.update_type === "directions" ? { directions: update.proposed_value }
+          : update.update_type === "description" ? { description: update.proposed_value }
           : update.update_type === "closed" ? { is_open_now: false, hours_schedule_status: "temporarily_closed" }
           : {};
         const { error: restroomError } = await admin.from("restrooms").update({ ...change, last_verified_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", update.restroom_id);

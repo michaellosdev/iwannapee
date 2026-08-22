@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     if (!allowed) return Response.json({ error: "Restroom not found." }, { status: 404 });
   }
 
-  const [reviewsResult, photosResult, notesResult] = await Promise.all([
+  const [reviewsResult, photosResult, notesResult, updatesResult] = await Promise.all([
     admin
       .from("reviews")
       .select("id,user_id,overall_rating,cleanliness_rating,note,created_at,updated_at")
@@ -55,35 +55,54 @@ export async function GET(request: Request) {
       .eq("status", "published")
       .order("created_at", { ascending: false })
       .limit(160),
+    admin
+      .from("restroom_updates")
+      .select("id,user_id,update_type,proposed_value,upvote_count,downvote_count,created_at,updated_at")
+      .eq("restroom_id", restroomId)
+      .eq("status", "pending")
+      .order("upvote_count", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(40),
   ]);
-  if (reviewsResult.error || photosResult.error || notesResult.error) {
+  if (reviewsResult.error || photosResult.error || notesResult.error || updatesResult.error) {
     return Response.json({ error: "Community details are temporarily unavailable." }, { status: 502 });
   }
 
   const reviews = reviewsResult.data || [];
   const photos = photosResult.data || [];
   const notes = notesResult.data || [];
+  const updates = updatesResult.data || [];
   const userIds = Array.from(new Set([
     ...reviews.map((review) => review.user_id),
     ...photos.map((photo) => photo.user_id),
     ...notes.map((note) => note.user_id),
+    ...updates.map((update) => update.user_id),
   ]));
   const { data: profiles } = userIds.length > 0
     ? await admin.from("profiles").select("id,display_name").in("id", userIds)
     : { data: [] };
   const displayNameById = new Map((profiles || []).map((profile) => [profile.id, profile.display_name || "IWANNAPEE user"]));
   const noteIds = notes.map((note) => note.id);
+  const updateIds = updates.map((update) => update.id);
   let viewerVotes: Array<{ note_id: string; value: number }> = [];
-  if (authData.user && noteIds.length > 0) {
-    const { data: voteRows, error: voteError } = await admin
-      .from("community_note_votes")
-      .select("note_id,value")
-      .eq("user_id", authData.user.id)
-      .in("note_id", noteIds);
-    if (voteError) return Response.json({ error: "Community details are temporarily unavailable." }, { status: 502 });
-    viewerVotes = voteRows || [];
+  let viewerUpdateVotes: Array<{ update_id: string; value: number }> = [];
+  if (authData.user) {
+    const [noteVotesResult, updateVotesResult] = await Promise.all([
+      noteIds.length > 0
+        ? admin.from("community_note_votes").select("note_id,value").eq("user_id", authData.user.id).in("note_id", noteIds)
+        : Promise.resolve({ data: [], error: null }),
+      updateIds.length > 0
+        ? admin.from("restroom_update_votes").select("update_id,value").eq("user_id", authData.user.id).in("update_id", updateIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (noteVotesResult.error || updateVotesResult.error) {
+      return Response.json({ error: "Community details are temporarily unavailable." }, { status: 502 });
+    }
+    viewerVotes = noteVotesResult.data || [];
+    viewerUpdateVotes = updateVotesResult.data || [];
   }
   const viewerVoteByNoteId = new Map(viewerVotes.map((vote) => [vote.note_id, vote.value]));
+  const viewerVoteByUpdateId = new Map(viewerUpdateVotes.map((vote) => [vote.update_id, vote.value]));
   const mappedNotes = notes.map((note) => ({
     id: note.id,
     parentId: note.parent_id,
@@ -123,6 +142,18 @@ export async function GET(request: Request) {
       confirmationCount: restroom.community_verification_count,
       notFoundCount: restroom.community_not_found_count,
     },
+    updates: updates.map((update) => ({
+      id: update.id,
+      type: update.update_type,
+      value: update.proposed_value,
+      displayName: displayNameById.get(update.user_id) || "IWANNAPEE user",
+      createdAt: update.created_at,
+      updatedAt: update.updated_at,
+      upvotes: update.upvote_count,
+      downvotes: update.downvote_count,
+      userVote: viewerVoteByUpdateId.get(update.id) || 0,
+      isOwn: update.user_id === authData.user?.id,
+    })),
     photos: photos
       .filter((photo) => !photo.review_id)
       .map((photo) => ({

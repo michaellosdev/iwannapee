@@ -230,6 +230,13 @@ function RestroomCard({ restroom, onSelect, onPromotionVisible }: { restroom: Re
   ].filter(Boolean).join(" ");
   const statusClassName = promotion ? "status-badge promoted" : restroom.openNow ? "status-badge open" : restroom.openNow === null ? "status-badge unknown" : "status-badge";
   const statusLabel = promotion ? "Sponsored" : restroom.openNow === null ? "Hours?" : restroom.openNow ? "Open" : "Closed";
+  const ratingChip = promotion ? (
+    <span className="rating-chip promoted-chip">{promotion.priorityPlacement ? <Gavel size={14} /> : <Megaphone size={14} />} {promotion.priorityPlacement ? "Priority" : "Offer"}</span>
+  ) : restroom.reviewCount > 0 ? (
+    <span className="rating-chip"><Star size={14} fill="currentColor" /> {restroom.rating.toFixed(1)}</span>
+  ) : (
+    <span className="rating-chip rating-new">New</span>
+  );
 
   useEffect(() => {
     const card = cardRef.current;
@@ -254,19 +261,13 @@ function RestroomCard({ restroom, onSelect, onPromotionVisible }: { restroom: Re
         </div>
       )}
       <div className="restroom-card-body">
-        {!coverPhotoUrl && <span className={`${statusClassName} status-badge-inline`}>{statusLabel}</span>}
+        {!coverPhotoUrl && <div className="card-badge-row"><span className={`${statusClassName} status-badge-inline`}>{statusLabel}</span>{ratingChip}</div>}
         <div className="card-heading-row">
           <div>
             <h3>{restroom.name}</h3>
             <p>{formatDistance(restroom.distanceMeters)} · {restroom.address}</p>
           </div>
-          {promotion ? (
-            <span className="rating-chip promoted-chip">{promotion.priorityPlacement ? <Gavel size={14} /> : <Megaphone size={14} />} {promotion.priorityPlacement ? "Priority" : "Offer"}</span>
-          ) : restroom.reviewCount > 0 ? (
-            <span className="rating-chip"><Star size={14} fill="currentColor" /> {restroom.rating.toFixed(1)}</span>
-          ) : (
-            <span className="rating-chip rating-new">New</span>
-          )}
+          {coverPhotoUrl && ratingChip}
         </div>
         {promotion ? (
           <div className="promotion-card-offer"><strong>{promotion.headline}</strong><span>{promotion.offerText}</span></div>
