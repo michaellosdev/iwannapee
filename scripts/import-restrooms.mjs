@@ -278,7 +278,7 @@ function meaningfulName(value) {
 
 function realAddress(value) {
   const address = normalized(value);
-  return address && !address.startsWith("map pin") && !address.startsWith("location shown") ? address : "";
+  return address.length >= 5 && !address.startsWith("map pin") && !address.startsWith("location shown") ? address : "";
 }
 
 function samePlace(first, second) {
