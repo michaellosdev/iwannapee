@@ -1,8 +1,11 @@
+import Stripe from "stripe";
 import { getOwnerAccess } from "@/lib/admin/authorization";
 import { getAdvertisingOffer } from "@/lib/advertising";
 import { formatHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
+import { CampaignLifecycleError, changeCampaignLifecycle } from "@/lib/server/campaign-lifecycle";
 import { timeZoneAt } from "@/lib/server/timezone";
+import { stripeKeyIsLive } from "@/lib/stripe/promotion-checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -199,6 +202,84 @@ export async function POST(request: Request) {
       return Response.json({ message: "Owner-only sample ad created. Search near its address to test placement." });
     }
 
+    if (action === "campaign_stop" || action === "campaign_delete") {
+      const id = validId(body?.id);
+      if (!id) throw new CampaignLifecycleError("Invalid campaign.");
+      const result = await changeCampaignLifecycle({
+        action: action === "campaign_stop" ? "stop" : "delete",
+        actorId: access.user.id,
+        campaignId: id,
+      });
+      return Response.json({
+        message: action === "campaign_delete"
+          ? "Campaign removed from the advertiser dashboard. No refund was issued."
+          : result.message,
+      });
+    }
+
+    if (action === "campaign_refund") {
+      const id = validId(body?.id);
+      if (!id) throw new CampaignLifecycleError("Invalid campaign.");
+      const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecret) throw new CampaignLifecycleError("Stripe is not configured.", 503);
+      if ((process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") && !stripeKeyIsLive(stripeSecret)) {
+        throw new CampaignLifecycleError("A live Stripe key is required for production refunds.", 503);
+      }
+
+      const { data: campaign, error: campaignError } = await admin
+        .from("advertising_campaigns")
+        .select("id,status,is_test,stripe_payment_intent_id,refund_requested_at,payment_refunded_at")
+        .eq("id", id)
+        .maybeSingle();
+      if (campaignError) throw campaignError;
+      if (!campaign) throw new CampaignLifecycleError("Campaign not found.", 404);
+      if (campaign.is_test) throw new CampaignLifecycleError("Test campaigns do not have a payment to refund.", 409);
+      if (!campaign.stripe_payment_intent_id) throw new CampaignLifecycleError("No Stripe payment is attached to this campaign.", 409);
+      if (campaign.status === "refunded" || campaign.payment_refunded_at) {
+        throw new CampaignLifecycleError("This campaign has already been fully refunded.", 409);
+      }
+      if (campaign.refund_requested_at) {
+        throw new CampaignLifecycleError("A full refund has already been requested for this campaign.", 409);
+      }
+
+      if (campaign.status === "active" || campaign.status === "pending_payment") {
+        await changeCampaignLifecycle({ action: "stop", actorId: access.user.id, campaignId: campaign.id });
+      }
+
+      const stripe = new Stripe(stripeSecret, { maxNetworkRetries: 2 });
+      const refund = await stripe.refunds.create({
+        payment_intent: campaign.stripe_payment_intent_id,
+        metadata: {
+          campaign_id: campaign.id,
+          refunded_by: access.user.id,
+        },
+      }, {
+        idempotencyKey: `iwannapee-admin-full-refund-${campaign.id}-${campaign.stripe_payment_intent_id}`,
+      });
+      if (refund.status === "failed") {
+        throw new CampaignLifecycleError("Stripe did not complete the refund. Review the payment in Stripe before trying another refund.", 502);
+      }
+
+      const now = new Date().toISOString();
+      const { error: refundAuditError } = await admin.from("advertising_campaigns").update({
+        refund_requested_at: now,
+        refund_requested_by: access.user.id,
+        updated_at: now,
+      }).eq("id", campaign.id);
+      if (refundAuditError) {
+        console.error("Stripe refund succeeded but the local audit update failed", {
+          campaignId: campaign.id,
+          refundId: refund.id,
+          error: refundAuditError.message,
+        });
+      }
+      return Response.json({
+        message: refund.status === "succeeded"
+          ? "Full refund completed. Stripe will confirm the campaign status by webhook."
+          : "Full refund submitted. Stripe will confirm the campaign status by webhook.",
+      });
+    }
+
     if (action === "sample_cancel") {
       const id = validId(body?.id);
       if (!id) throw new Error("Invalid sample campaign");
@@ -210,6 +291,9 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unknown owner action." }, { status: 400 });
   } catch (error) {
     console.error("Owner action failed", { action, error: error instanceof Error ? error.message : "Unknown error" });
+    if (error instanceof CampaignLifecycleError) {
+      return Response.json({ error: error.message }, { status: error.status });
+    }
     return Response.json({ error: "The owner action could not be completed." }, { status: 400 });
   }
 }

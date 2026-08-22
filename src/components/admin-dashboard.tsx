@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Eye, FlaskConical, Gavel, Images, MapPin, MessageCircle, Megaphone, ShieldCheck, Trash2, UserCog, X } from "lucide-react";
+import { BadgeDollarSign, Ban, Check, Eye, FlaskConical, Gavel, Images, MapPin, MessageCircle, Megaphone, ShieldCheck, Trash2, UserCog, X } from "lucide-react";
 
 type AdminRestroom = {
   id: string;
@@ -34,7 +34,7 @@ type DashboardData = {
   restrooms: AdminRestroom[];
   updates: Array<{ id: string; restroom_id: string; restroom_name: string; update_type: string; proposed_value: string; upvote_count: number; downvote_count: number; created_at: string }>;
   reports: Array<{ id: string; restroom_id: string; restroom_name: string; reason: string; details: string | null; created_at: string }>;
-  campaigns: Array<{ id: string; business_name: string; restroom_name: string; address: string; headline: string; offer_text: string; placement_bid_cents: number; status: string; is_test: boolean; starts_at: string | null; ends_at: string | null; created_at: string }>;
+  campaigns: Array<{ id: string; created_by: string; creator_email: string; business_name: string; restroom_name: string; address: string; headline: string; offer_text: string; price_cents: number; placement_bid_cents: number; support_amount_cents: number; status: string; is_test: boolean; stripe_payment_intent_id: string | null; starts_at: string | null; ends_at: string | null; stopped_at: string | null; deleted_at: string | null; refund_requested_at: string | null; payment_refunded_at: string | null; created_at: string }>;
   photos: Array<{ id: string; restroom_id: string; restroom_name: string; review_id: string | null; user_id: string; contributor: string; public_url: string; caption: string | null; status: string; created_at: string }>;
   notes: Array<{ id: string; restroom_id: string; restroom_name: string; parent_id: string | null; user_id: string; contributor: string; body: string; status: string; upvote_count: number; downvote_count: number; created_at: string }>;
 };
@@ -74,6 +74,11 @@ export function AdminDashboard({ currentUserId, initialData }: { currentUserId: 
     } finally {
       setWorking("");
     }
+  }
+
+  function runConfirmedAction(action: string, payload: Record<string, unknown>, confirmation: string) {
+    if (!window.confirm(confirmation)) return;
+    void runAction(action, payload);
   }
 
   return (
@@ -175,8 +180,8 @@ export function AdminDashboard({ currentUserId, initialData }: { currentUserId: 
       </section>
 
       <section className="admin-section admin-sample-section">
-        <div className="admin-section-heading"><div><FlaskConical size={20} /><h2>Test sponsored placement</h2></div><span>No payment</span></div>
-        <p className="admin-section-copy">Creates an active test campaign that only your signed-in owner account can see. Search near its coordinates on the homepage to verify bid order, cards, pins, QR, and promo treatments.</p>
+        <div className="admin-section-heading"><div><FlaskConical size={20} /><h2>Campaign management & test placement</h2></div><span>Admin only</span></div>
+        <p className="admin-section-copy">Create an owner-only test placement below. The campaign list retains paid and deleted records for audit; Stop and Delete never refund a payment, while Full refund is an explicit admin-only action.</p>
         <div className="admin-sample-form">
           {Object.entries(sample).map(([key, value]) => (
             <label className={key === "offerText" ? "admin-wide" : ""} key={key}><span>{key.replace(/([A-Z])/g, " $1")}</span>{key === "offerText" ? <textarea onChange={(event) => setSample((current) => ({ ...current, [key]: event.target.value }))} value={value} /> : <input onChange={(event) => setSample((current) => ({ ...current, [key]: event.target.value }))} value={value} />}</label>
@@ -185,7 +190,25 @@ export function AdminDashboard({ currentUserId, initialData }: { currentUserId: 
         </div>
         <div className="admin-campaign-list">
           {initialData.campaigns.map((campaign) => (
-            <article key={campaign.id}><div><small>{campaign.is_test ? "TEST" : "PAID"} · {campaign.status} · bid ${(campaign.placement_bid_cents / 100).toFixed(2)}</small><strong>{campaign.business_name} — {campaign.headline}</strong><span>{campaign.address}</span></div>{campaign.is_test && campaign.status === "active" && <button aria-label="Cancel test ad" onClick={() => runAction("sample_cancel", { id: campaign.id })}><Trash2 size={16} /></button>}</article>
+            <article key={campaign.id}>
+              <div>
+                <small>{campaign.is_test ? "TEST" : "PAID"} · {campaign.deleted_at ? "deleted · " : ""}{campaign.status} · bid ${(campaign.placement_bid_cents / 100).toFixed(2)}</small>
+                <strong>{campaign.business_name} — {campaign.headline}</strong>
+                <span>{campaign.address} · {campaign.creator_email}</span>
+                {campaign.refund_requested_at && !campaign.payment_refunded_at ? <span>Full refund requested · awaiting Stripe webhook confirmation</span> : null}
+              </div>
+              <div className="admin-campaign-actions">
+                {!campaign.deleted_at && (campaign.status === "active" || campaign.status === "pending_payment") ? (
+                  <button aria-label="Stop campaign" className="admin-campaign-stop" disabled={Boolean(working)} onClick={() => runConfirmedAction("campaign_stop", { id: campaign.id }, "Stop this campaign immediately? It will no longer appear publicly. No refund will be issued.")}><Ban size={15} /><span>Stop</span></button>
+                ) : null}
+                {!campaign.deleted_at ? (
+                  <button aria-label="Delete campaign" className="admin-campaign-delete" disabled={Boolean(working)} onClick={() => runConfirmedAction("campaign_delete", { id: campaign.id }, "Delete this campaign from the advertiser dashboard? It will be stopped, but no refund will be issued. Payment records will be retained.")}><Trash2 size={15} /><span>Delete</span></button>
+                ) : null}
+                {!campaign.is_test && campaign.stripe_payment_intent_id && campaign.status !== "refunded" && !campaign.refund_requested_at ? (
+                  <button aria-label="Issue full refund" className="admin-campaign-refund" disabled={Boolean(working)} onClick={() => runConfirmedAction("campaign_refund", { id: campaign.id }, "Issue a FULL Stripe refund for this campaign? This is an admin-only, irreversible payment action. The campaign will also be stopped immediately.")}><BadgeDollarSign size={15} /><span>Full refund</span></button>
+                ) : null}
+              </div>
+            </article>
           ))}
         </div>
       </section>

@@ -133,7 +133,7 @@ async function markFullyRefunded(charge: Stripe.Charge) {
     .from("advertising_campaigns")
     .update({ status: "refunded", payment_refunded_at: now, updated_at: now })
     .eq("stripe_payment_intent_id", intentId)
-    .in("status", ["active", "expired", "disputed"]);
+    .in("status", ["active", "expired", "cancelled", "disputed"]);
   if (error) throw error;
 }
 
@@ -148,7 +148,7 @@ async function markDisputed(dispute: Stripe.Dispute) {
     .from("advertising_campaigns")
     .update({ status: "disputed", payment_disputed_at: now, updated_at: now })
     .eq("stripe_payment_intent_id", intentId)
-    .in("status", ["active", "expired"]);
+    .in("status", ["active", "expired", "cancelled"]);
   if (error) throw error;
 }
 

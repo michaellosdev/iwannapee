@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Clipboard, ExternalLink, Eye, Megaphone, MousePointerClick, Plus, QrCode } from "lucide-react";
+import { CampaignLifecycleControls } from "@/components/campaign-lifecycle-controls";
 import { ResumePromotionPaymentButton } from "@/components/resume-promotion-payment-button";
 import { formatPrice } from "@/lib/advertising";
 import { createClient } from "@/lib/supabase/server";
@@ -103,6 +104,7 @@ export default async function BusinessAnalyticsPage() {
                 <div><QrCode size={17} /><span><strong>{metric(campaign.qr_copy_count)}</strong><small>QR copies</small></span></div>
                 <div><ExternalLink size={17} /><span><strong>{metric(campaign.website_click_count)}</strong><small>Site clicks</small></span></div>
               </div>
+              <CampaignLifecycleControls campaignId={campaign.campaign_id} status={campaign.status} />
             </article>
           ))}
         </section>

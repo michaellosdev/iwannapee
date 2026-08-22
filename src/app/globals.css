@@ -3857,6 +3857,50 @@ a {
   font-size: 16px;
 }
 
+.business-campaign-control-wrap {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.business-campaign-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.business-campaign-controls .button {
+  min-height: 38px;
+  padding: 10px 13px;
+}
+
+.business-campaign-stop {
+  background: #fff4c9;
+  color: #5d4c09;
+}
+
+.business-campaign-delete {
+  background: #f5e8e4;
+  color: #8b382e;
+}
+
+.business-campaign-control-error,
+.business-campaign-no-refund {
+  display: block;
+  font-size: 9px;
+  line-height: 1.45;
+  margin: 8px 0 0;
+}
+
+.business-campaign-control-error {
+  color: #9b2c2c;
+  font-weight: 750;
+}
+
+.business-campaign-no-refund {
+  color: var(--muted);
+}
+
 .business-dashboard-empty {
   align-items: center;
   background: white;
@@ -4596,6 +4640,38 @@ a {
   width: 36px;
 }
 
+.admin-campaign-list article > .admin-campaign-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.admin-campaign-list .admin-campaign-actions button {
+  gap: 5px;
+  padding: 0 10px;
+  width: auto;
+}
+
+.admin-campaign-list .admin-campaign-actions button span {
+  color: inherit;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.admin-campaign-list .admin-campaign-stop {
+  background: #fff1b8;
+  color: #665000;
+}
+
+.admin-campaign-list .admin-campaign-refund {
+  background: #e3eaff;
+  color: #173dc6;
+}
+
 @media (max-width: 1000px) {
   .site-header {
     grid-template-columns: 1fr auto;
@@ -5155,6 +5231,16 @@ a {
     width: 100%;
   }
 
+  .business-campaign-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .business-campaign-controls .button {
+    justify-content: center;
+    width: 100%;
+  }
+
   .business-dashboard-empty {
     align-items: flex-start;
     flex-direction: column;
@@ -5225,6 +5311,19 @@ a {
   .admin-restroom-modal-actions .button {
     justify-content: center;
     width: 100%;
+  }
+
+  .admin-campaign-list article {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-campaign-list article > .admin-campaign-actions {
+    justify-content: stretch;
+  }
+
+  .admin-campaign-list .admin-campaign-actions button {
+    flex: 1 1 auto;
   }
 
   input:not([type="checkbox"]):not([type="radio"]),
