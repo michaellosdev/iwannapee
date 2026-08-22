@@ -46,6 +46,7 @@ import { AuthDialog } from "@/components/auth-dialog";
 import { CaptchaWidget } from "@/components/captcha-widget";
 import { openPrivacySettings } from "@/components/google-analytics";
 import { ReviewDialog } from "@/components/review-dialog";
+import { RestroomCommunity } from "@/components/restroom-community";
 import { SubmitRestroomDialog } from "@/components/submit-restroom-dialog";
 import { formatPrice, type AdvertisingOffer } from "@/lib/advertising";
 import { demoRestrooms, DEFAULT_LOCATION } from "@/lib/demo-restrooms";
@@ -82,6 +83,9 @@ type NearbyRestroomRow = {
   longitude: number;
   data_source: "community" | "openstreetmap" | "refuge";
   source_url: string | null;
+  community_verified_at: string | null;
+  community_verification_count: number;
+  community_not_found_count: number;
 };
 
 type NearbyAdvertisementRow = {
@@ -141,6 +145,9 @@ function toRestroom(row: NearbyRestroomRow): Restroom {
     distanceMeters: Number(row.distance_meters || 0),
     features: (row.features || []) as RestroomFeature[],
     lastVerifiedAt: row.last_verified_at,
+    communityVerifiedAt: row.community_verified_at,
+    communityVerificationCount: row.community_verification_count || 0,
+    communityNotFoundCount: row.community_not_found_count || 0,
     latitude: row.latitude,
     longitude: row.longitude,
     source: row.data_source || "community",
@@ -166,6 +173,9 @@ function toSponsoredRestroom(row: NearbyAdvertisementRow): Restroom {
     distanceMeters: Number(row.distance_meters || 0),
     features: [],
     lastVerifiedAt: row.ends_at,
+    communityVerifiedAt: null,
+    communityVerificationCount: 0,
+    communityNotFoundCount: 0,
     latitude: row.latitude,
     longitude: row.longitude,
     source: "promotion",
@@ -318,13 +328,17 @@ function WorldRankingCard({ restroom, onSelect }: { restroom: RankedRestroom; on
 
 function RestroomDetail({
   restroom,
+  user,
   onClose,
+  onNeedsAuth,
   onRate,
   onNotify,
   onPromotionAction,
 }: {
   restroom: Restroom;
+  user: User | null;
   onClose: () => void;
+  onNeedsAuth: () => void;
   onRate: () => void;
   onNotify: (message: string) => void;
   onPromotionAction: (campaignId: string, eventType: PromotionActivityType) => void;
@@ -457,6 +471,10 @@ function RestroomDetail({
           <div><Clock3 size={21} /><span><strong>{restroom.hours}</strong><small>Reported hours</small></span></div>
         </div>
 
+        {restroom.source !== "demo" && (
+          <RestroomCommunity restroom={restroom} user={user} onNeedsAuth={onNeedsAuth} onNotify={onNotify} />
+        )}
+
         <section className="detail-section">
           <h3>What to expect</h3>
           <p>{restroom.description}</p>
@@ -470,16 +488,9 @@ function RestroomDetail({
           <p className="directions-copy"><Signpost size={18} /> {restroom.directions}</p>
         </section>
 
-        <p className="verification-line">
-          <ShieldCheck size={15} />
-          {restroom.source === "promotion"
-            ? `Paid placement · availability and offer supplied by ${restroom.promotion?.businessName}`
-            : restroom.source === "refuge"
-            ? "Supporting listing from REFUGE Restrooms · details need community re-verification"
-            : restroom.source === "openstreetmap"
-            ? "Mapped by OpenStreetMap contributors · details need community verification"
-            : `Community verified ${new Date(restroom.lastVerifiedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
-        </p>
+        {restroom.source === "promotion" && (
+          <p className="verification-line"><ShieldCheck size={15} /> Paid placement · availability and offer supplied by {restroom.promotion?.businessName}</p>
+        )}
       </div>
     </aside>
   );
@@ -935,7 +946,18 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
       {selected && (
         <>
           <div className="detail-backdrop" onClick={() => setSelected(null)} />
-          <RestroomDetail restroom={selected} onClose={() => setSelected(null)} onRate={() => setReviewing(selected)} onNotify={setNotice} onPromotionAction={recordPromotionEvent} />
+          <RestroomDetail
+            restroom={selected}
+            user={user}
+            onClose={() => setSelected(null)}
+            onNeedsAuth={() => {
+              setAuthReturnTo("/");
+              setAuthOpen(true);
+            }}
+            onRate={() => setReviewing(selected)}
+            onNotify={setNotice}
+            onPromotionAction={recordPromotionEvent}
+          />
         </>
       )}
 
@@ -944,7 +966,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
       <AuthDialog open={authOpen} user={user} returnTo={authReturnTo} onClose={() => setAuthOpen(false)} onSignedOut={() => setUser(null)} />
       <AdvertiseDialog open={advertiseOpen} user={user} currentLocation={center} offer={adOffer} onClose={() => setAdvertiseOpen(false)} onNeedsAuth={() => setAuthOpen(true)} />
       <SubmitRestroomDialog open={submitOpen} user={user} currentLocation={center} onClose={() => setSubmitOpen(false)} onNeedsAuth={() => setAuthOpen(true)} />
-      <ReviewDialog restroom={reviewing} user={user} onClose={() => setReviewing(null)} onNeedsAuth={() => setAuthOpen(true)} />
+      <ReviewDialog key={reviewing ? (reviewing.promotion?.restroomId || reviewing.id) : "closed-review"} restroom={reviewing} user={user} onClose={() => setReviewing(null)} onNeedsAuth={() => setAuthOpen(true)} />
     </main>
   );
 }

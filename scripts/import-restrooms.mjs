@@ -65,7 +65,7 @@ if (!dryRun && (!supabaseUrl || !supabaseSecret)) throw new Error("NEXT_PUBLIC_S
 
 const trim = (value, max) => String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
 const yes = (value) => value === "yes" || value === "designated";
-const restrictedAccess = new Set(["private", "no", "customers", "permit"]);
+const restrictedAccess = new Set(["private", "no", "permit"]);
 const genericNames = new Set(["public restroom", "public restrooms", "restroom", "restrooms", "toilet", "toilets"]);
 
 function inside(region, longitude, latitude) {
@@ -83,12 +83,12 @@ function addressFromTags(tags) {
   return trim([street, locality].filter(Boolean).join(", "), 240);
 }
 
-function osmFeatures(tags) {
+function osmFeatures(tags, restroomAccess) {
   const features = [];
   if (yes(tags.wheelchair) || yes(tags["toilets:wheelchair"])) features.push("Accessible");
   if (yes(tags.baby_changing) || yes(tags.changing_table)) features.push("Baby changing");
   if (yes(tags.unisex) || tags.gender_segregated === "no") features.push("Gender neutral");
-  if (tags.fee !== "yes") features.push("Free");
+  if (tags.fee !== "yes" && restroomAccess !== "customers") features.push("Free");
   if (tags["toilets:position"] === "seated" || tags.unisex === "yes") features.push("Single stall");
   return [...new Set(features)];
 }
@@ -113,14 +113,20 @@ function mapOsmFeature(feature, regions) {
   if (!region) return null;
 
   const tags = feature?.properties?.tags || {};
-  if (tags.amenity !== "toilets" || restrictedAccess.has(tags.access) || tags.disused === "yes" || tags.abandoned === "yes") return null;
-  const externalId = String(feature?.properties?.id || "");
-  if (!externalId) return null;
+  const standalone = tags.amenity === "toilets";
+  const venueRestroom = tags.toilets === "yes" || ["yes", "customers"].includes(tags["toilets:access"]);
+  const restroomAccess = tags["toilets:access"] || tags.access;
+  if ((!standalone && !venueRestroom) || restrictedAccess.has(restroomAccess) || tags.disused === "yes" || tags.abandoned === "yes") return null;
+  const elementType = ["node", "way", "relation"].includes(feature?.properties?.type) ? feature.properties.type : "node";
+  const rawExternalId = String(feature?.properties?.id || "");
+  if (!rawExternalId) return null;
+  const externalId = elementType === "node" ? rawExternalId : `${elementType}/${rawExternalId}`;
 
   const taggedAddress = addressFromTags(tags);
   const operator = trim(tags.operator, 100);
-  const name = trim(tags.name || (operator ? `${operator} Restroom` : "Public Restroom"), 120);
-  const sourceUrl = `https://www.openstreetmap.org/node/${encodeURIComponent(externalId)}`;
+  const venueName = trim(tags.name || operator, 100);
+  const name = trim(standalone ? venueName || "Public Restroom" : venueName ? `${venueName} Restroom` : "Restroom inside this venue", 120);
+  const sourceUrl = `https://www.openstreetmap.org/${elementType}/${encodeURIComponent(rawExternalId)}`;
   const source = {
     source: "openstreetmap",
     external_id: externalId,
@@ -129,7 +135,9 @@ function mapOsmFeature(feature, regions) {
     metadata: {
       region: region.slug,
       check_date: tags.check_date || null,
-      access: tags.access || null,
+      access: restroomAccess || null,
+      toilets: tags.toilets || null,
+      toilets_access: tags["toilets:access"] || null,
       fee: tags.fee || null,
       wheelchair: tags.wheelchair || tags["toilets:wheelchair"] || null,
       unisex: tags.unisex || null,
@@ -140,16 +148,18 @@ function mapOsmFeature(feature, regions) {
   return {
     name,
     address: taggedAddress,
-    description: trim(tags.description || "OpenStreetMap public-restroom map pin. Details have not been community verified.", 2000),
+    description: trim(tags.description || (standalone
+      ? "OpenStreetMap public-restroom map pin. Details have not been community verified."
+      : "A restroom is reported inside this venue by OpenStreetMap contributors. Details have not been community verified."), 2000),
     directions: osmDirections(tags),
     hours: trim(tags.opening_hours || "Hours not listed", 240),
     latitude,
     longitude,
     is_open_now: null,
     access_code: null,
-    access_instructions: trim(tags.access === "yes" || tags.access === "public" ? "Mapped as publicly accessible." : "Access details have not been community verified.", 500),
+    access_instructions: trim(restroomAccess === "customers" ? "Mapped as customer-only access; confirm before relying on it." : restroomAccess === "yes" || restroomAccess === "public" ? "Mapped as publicly accessible." : "Access details have not been community verified.", 500),
     cover_photo_url: String(tags.image || "").startsWith("http") ? trim(tags.image, 1000) : null,
-    features: osmFeatures(tags),
+    features: osmFeatures(tags, restroomAccess),
     status: "published",
     last_verified_at: safeDate(tags.check_date),
     data_source: "openstreetmap",

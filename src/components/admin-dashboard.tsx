@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, FlaskConical, Gavel, Megaphone, ShieldCheck, Trash2, UserCog, X } from "lucide-react";
+import { Check, FlaskConical, Gavel, Images, Megaphone, ShieldCheck, Trash2, UserCog, X } from "lucide-react";
 
 type DashboardData = {
   profiles: Array<{ id: string; display_name: string | null; email: string; role: string; is_moderator: boolean; created_at: string }>;
@@ -10,6 +10,7 @@ type DashboardData = {
   updates: Array<{ id: string; restroom_id: string; restroom_name: string; update_type: string; proposed_value: string; created_at: string }>;
   reports: Array<{ id: string; restroom_id: string; restroom_name: string; reason: string; details: string | null; created_at: string }>;
   campaigns: Array<{ id: string; business_name: string; restroom_name: string; address: string; headline: string; offer_text: string; placement_bid_cents: number; status: string; is_test: boolean; starts_at: string | null; ends_at: string | null; created_at: string }>;
+  photos: Array<{ id: string; restroom_id: string; restroom_name: string; review_id: string | null; user_id: string; contributor: string; public_url: string; caption: string | null; status: string; created_at: string }>;
 };
 
 export function AdminDashboard({ currentUserId, initialData }: { currentUserId: string; initialData: DashboardData }) {
@@ -71,6 +72,27 @@ export function AdminDashboard({ currentUserId, initialData }: { currentUserId: 
             </article>
           ))}
           {initialData.restrooms.length === 0 && <p className="admin-empty">No restroom submissions are waiting.</p>}
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <div className="admin-section-heading"><div><Images size={20} /><h2>Community photos</h2></div><span>{initialData.photos.length} pending</span></div>
+        <div className="admin-grid">
+          {initialData.photos.map((photo) => (
+            <article className="admin-card" key={photo.id}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img alt={`Community submission for ${photo.restroom_name}`} src={photo.public_url} />
+              <small>{photo.review_id ? "Review photo" : "Restroom photo"} · {new Date(photo.created_at).toLocaleString()}</small>
+              <h3>{photo.restroom_name}</h3>
+              <p>{photo.caption || "No caption."}</p>
+              <small>Submitted by {photo.contributor}</small>
+              <div className="admin-actions">
+                <button disabled={Boolean(working)} onClick={() => runAction("community_photo_status", { id: photo.id, status: "published" })}><Check size={15} /> Publish</button>
+                <button disabled={Boolean(working)} onClick={() => runAction("community_photo_status", { id: photo.id, status: "rejected" })}><X size={15} /> Reject</button>
+              </div>
+            </article>
+          ))}
+          {initialData.photos.length === 0 && <p className="admin-empty">No community photos are waiting.</p>}
         </div>
       </section>
 

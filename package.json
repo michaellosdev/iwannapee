@@ -12,6 +12,7 @@
     "verify:production-env": "node scripts/verify-production-env.mjs",
     "smoke:production": "node scripts/smoke-production.mjs",
     "seed:restrooms": "node --env-file=.env.local scripts/import-restrooms.mjs",
+    "fetch:osm-restroom-venues": "node scripts/fetch-osm-restroom-venues.mjs",
     "backup:storage": "node --env-file=.env.local scripts/backup-storage.mjs",
     "restore:test:storage": "node --env-file=.env.local scripts/restore-storage-test.mjs",
     "restore:test:database": "bash scripts/backup-restore-test.sh"

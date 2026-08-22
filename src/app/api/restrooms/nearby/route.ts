@@ -15,12 +15,12 @@ type OverpassResponse = { elements?: OsmElement[] };
 
 const yes = (value: string | undefined) => value === "yes" || value === "designated";
 
-function featuresFromTags(tags: Record<string, string>): RestroomFeature[] {
+function featuresFromTags(tags: Record<string, string>, access: string | undefined): RestroomFeature[] {
   const features: RestroomFeature[] = [];
-  if (yes(tags.wheelchair)) features.push("Accessible");
+  if (yes(tags.wheelchair) || yes(tags["toilets:wheelchair"])) features.push("Accessible");
   if (yes(tags.baby_changing) || yes(tags.changing_table)) features.push("Baby changing");
   if (yes(tags.unisex) || tags.gender_segregated === "no") features.push("Gender neutral");
-  if (tags.fee !== "yes") features.push("Free");
+  if (tags.fee !== "yes" && access !== "customers") features.push("Free");
   return features;
 }
 
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     || (process.env.NODE_ENV === "development" ? "https://overpass-api.de/api/interpreter" : "");
   if (!providerUrl) return NextResponse.json([]);
 
-  const query = `[out:json][timeout:18];nwr["amenity"="toilets"](around:${Math.round(radius)},${latitude},${longitude});out center tags;`;
+  const query = `[out:json][timeout:18];(nwr["amenity"="toilets"](around:${Math.round(radius)},${latitude},${longitude});nwr["toilets"="yes"](around:${Math.round(radius)},${latitude},${longitude});nwr["toilets:access"~"^(yes|customers)$"](around:${Math.round(radius)},${latitude},${longitude}););out center tags;`;
   const endpoint = new URL(providerUrl);
   endpoint.searchParams.set("data", query);
 
@@ -74,19 +74,26 @@ export async function GET(request: Request) {
       if (elementLatitude === undefined || elementLongitude === undefined) return [];
 
       const tags = element.tags || {};
-      if (["private", "no", "customers"].includes(tags.access)) return [];
-      const name = tags.name || (tags.operator ? `${tags.operator} Restroom` : "Public Restroom");
+      const standalone = tags.amenity === "toilets";
+      const restroomAccess = tags["toilets:access"] || tags.access;
+      if (["private", "no", "permit"].includes(restroomAccess)) return [];
+      const venueName = tags.name || tags.operator;
+      const name = standalone
+        ? venueName || "Public Restroom"
+        : venueName ? `${venueName} Restroom` : "Restroom inside this venue";
 
       return [{
         id: `osm-${element.type}-${element.id}`,
         name,
         address: addressFromTags(tags),
-        description: tags.description || "Public restroom listed by OpenStreetMap contributors. Add a community update to share more detail.",
+        description: tags.description || (standalone
+          ? "Public restroom listed by OpenStreetMap contributors. Add a community verification to share more detail."
+          : "A restroom is reported inside this venue by OpenStreetMap contributors. Community verification is still needed."),
         directions: directionsFromTags(tags),
         hours: tags.opening_hours || "Hours not listed",
         openNow: null,
         accessCode: null,
-        accessInstructions: tags.access === "customers" ? "Reported as customer access; confirm before relying on it." : "No access instructions have been added yet.",
+        accessInstructions: restroomAccess === "customers" ? "Reported as customer-only access; confirm before relying on it." : "No access instructions have been added yet.",
         coverPhotoUrl: tags.image?.startsWith("http") ? tags.image : null,
         rating: 0,
         cleanlinessRating: 0,
@@ -95,11 +102,15 @@ export async function GET(request: Request) {
           { latitude, longitude },
           { latitude: elementLatitude, longitude: elementLongitude },
         ),
-        features: featuresFromTags(tags),
+        features: featuresFromTags(tags, restroomAccess),
         lastVerifiedAt: new Date(0).toISOString(),
+        communityVerifiedAt: null,
+        communityVerificationCount: 0,
+        communityNotFoundCount: 0,
         latitude: elementLatitude,
         longitude: elementLongitude,
         source: "openstreetmap",
+        sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}`,
       }];
     });
 

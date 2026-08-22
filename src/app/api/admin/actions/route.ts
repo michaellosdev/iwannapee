@@ -37,8 +37,19 @@ export async function POST(request: Request) {
       const id = validId(body?.id);
       const status = body?.status === "published" || body?.status === "rejected" ? body.status : null;
       if (!id || !status) throw new Error("Invalid restroom action");
+      const { data: restroom, error: restroomReadError } = await admin.from("restrooms").select("id,created_by").eq("id", id).eq("status", "pending").single();
+      if (restroomReadError || !restroom) throw restroomReadError || new Error("Restroom is no longer pending");
       const { error } = await admin.from("restrooms").update({ status, moderated_by: access.user.id, moderated_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id).eq("status", "pending");
       if (error) throw error;
+      if (status === "published" && restroom.created_by) {
+        const { error: verificationError } = await admin.from("restroom_verifications").upsert({
+          restroom_id: id,
+          user_id: restroom.created_by,
+          verdict: "confirmed",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "restroom_id,user_id" });
+        if (verificationError) throw verificationError;
+      }
       return Response.json({ message: status === "published" ? "Restroom published." : "Restroom rejected." });
     }
 
@@ -69,6 +80,34 @@ export async function POST(request: Request) {
       const { error } = await admin.from("reports").update({ status }).eq("id", id).eq("status", "open");
       if (error) throw error;
       return Response.json({ message: `Report ${status}.` });
+    }
+
+    if (action === "community_photo_status") {
+      const id = validId(body?.id);
+      const status = body?.status === "published" || body?.status === "rejected" ? body.status : null;
+      if (!id || !status) throw new Error("Invalid community photo action");
+      const { data: photo, error: photoReadError } = await admin
+        .from("community_photos")
+        .select("id,restroom_id,review_id,storage_path,public_url,status")
+        .eq("id", id)
+        .single();
+      if (photoReadError || !photo || photo.status !== "pending") throw photoReadError || new Error("Photo is no longer pending");
+      const { error } = await admin.from("community_photos").update({
+        status,
+        moderated_by: access.user.id,
+        moderated_at: new Date().toISOString(),
+      }).eq("id", id).eq("status", "pending");
+      if (error) throw error;
+      if (status === "published" && !photo.review_id) {
+        const { error: coverError } = await admin.from("restrooms").update({
+          cover_photo_url: photo.public_url,
+          cover_photo_storage_path: photo.storage_path,
+          updated_at: new Date().toISOString(),
+        }).eq("id", photo.restroom_id).is("cover_photo_url", null);
+        if (coverError) throw coverError;
+      }
+      if (status === "rejected") await admin.storage.from("restroom-photos").remove([photo.storage_path]);
+      return Response.json({ message: status === "published" ? "Community photo published." : "Community photo rejected." });
     }
 
     if (action === "profile_role") {

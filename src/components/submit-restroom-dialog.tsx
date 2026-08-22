@@ -7,7 +7,7 @@ import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { CaptchaWidget } from "@/components/captcha-widget";
 import { WeeklyHoursEditor } from "@/components/weekly-hours-editor";
 import { createHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
-import { createClient } from "@/lib/supabase/client";
+import { PhotoUploadError, uploadPhoto } from "@/lib/photo-upload";
 import type { Coordinates, LocationSearchResult, RestroomFeature } from "@/types/restroom";
 
 type SubmitRestroomDialogProps = {
@@ -97,38 +97,17 @@ export function SubmitRestroomDialog({
       return;
     }
 
-    const supabase = createClient();
-    if (!supabase) {
-      setError("Supabase is not connected yet. Add the environment variables in .env.local to publish.");
-      return;
-    }
-
     setStatus("submitting");
     let coverPhotoStoragePath: string | null = null;
 
     if (photo) {
-      const signedResponse = await fetch("/api/storage/restroom-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: photo.type, size: photo.size }),
-      });
-      const signed = (await signedResponse.json()) as { path?: string; token?: string; error?: string };
-      if (!signedResponse.ok || !signed.path || !signed.token) {
+      try {
+        coverPhotoStoragePath = await uploadPhoto(photo);
+      } catch (photoError) {
         setStatus("idle");
-        setError(signed.error || "Photo upload could not start.");
+        setError(photoError instanceof PhotoUploadError ? photoError.message : "Photo upload could not start.");
         return;
       }
-      const { error: uploadError } = await supabase.storage
-        .from("restroom-photos")
-        .uploadToSignedUrl(signed.path, signed.token, photo, { contentType: photo.type });
-
-      if (uploadError) {
-        setStatus("idle");
-        setError(`Photo upload failed: ${uploadError.message}`);
-        return;
-      }
-
-      coverPhotoStoragePath = signed.path;
     }
 
     const submissionFeatures = accessCode

@@ -118,6 +118,13 @@ Signed-in advertisers can open `/business` for privacy-conscious first-party cam
 
 Development discovery can use [OpenStreetMap restroom data through Overpass](https://wiki.openstreetmap.org/wiki/Overpass_API). Production does not fall back to the public Overpass or OpenStreetMap tile services. It uses seeded Supabase records plus explicitly configured managed/self-hosted providers. OpenStreetMap data remains under the [Open Database License](https://www.openstreetmap.org/copyright), so attribution and share-alike obligations must be preserved.
 
+The OSM importer accepts standalone `amenity=toilets` features and venues explicitly tagged with `toilets=yes` or `toilets:access=yes/customers`. Fetch the supplemental Los Angeles and New York venue set, then pass it through the same address, provenance, deduplication, and seeding pipeline:
+
+```bash
+npm run fetch:osm-restroom-venues -- --output .data/osm-restroom-venues.geojson
+npm run seed:restrooms -- --geojson .data/osm-restroom-venues.geojson --scope la-ny
+```
+
 Useful official regional supplements include:
 
 - [New York City Public Restrooms](https://data.cityofnewyork.us/City-Government/Public-Restrooms/i7jb-7jku), which includes coordinates, hours, accessibility, changing stations, operational status, and notes.
@@ -132,11 +139,13 @@ Treat all imported data as a starting point rather than a real-time availability
 - Signed-in contributors create `pending` restroom submissions.
 - Owners use `/admin` to approve/reject listings and corrections, resolve reports, create sample ads, and assign `user`, `moderator`, or `owner` roles. Access requires both the server-side owner email allowlist and an authenticated account.
 - Reviews update aggregate overall and cleanliness scores automatically.
+- Imported listings begin as explicitly unverified. Signed-in users can confirm that a restroom still exists or report it missing; only positive IWANNAPEE confirmations produce the Community Verified timestamp.
+- Restroom and review photos enter an owner moderation queue before appearing publicly. The first approved restroom photo can become the listing cover image.
 - Suggested updates and reports have separate queues in the schema.
 - Sponsored restrooms are always disclosed and are returned only when the visitor is inside the campaign radius and the campaign is active and unexpired. At most three sponsored campaigns are returned per local search; priority bids rank ahead of standard sponsored listings and distance breaks ties.
 - Photo uploads are limited to 8 MB JPEG, PNG, or WebP files in a user-owned storage folder.
 
-Access codes and hours can change quickly. Before launch, add a visible reporting workflow and a moderator dashboard, establish listing rules, and verify that each seeded or imported restroom is genuinely open to the public.
+Access codes and hours can change quickly. Imported information remains attributed to its source and is presented as a starting point until an IWANNAPEE user verifies it.
 
 ## Verification
 

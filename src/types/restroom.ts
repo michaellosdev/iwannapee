@@ -42,6 +42,9 @@ export type Restroom = Coordinates & {
   distanceMeters: number;
   features: RestroomFeature[];
   lastVerifiedAt: string;
+  communityVerifiedAt: string | null;
+  communityVerificationCount: number;
+  communityNotFoundCount: number;
   source: "community" | "openstreetmap" | "refuge" | "promotion" | "demo";
   sourceUrl?: string | null;
   promotion?: RestroomPromotion;

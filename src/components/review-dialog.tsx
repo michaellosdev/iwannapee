@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Sparkles, Star, X } from "lucide-react";
+import { Camera, Check, Sparkles, Star, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { CaptchaWidget } from "@/components/captcha-widget";
+import { PhotoUploadError, uploadPhotos, validatePhotoFiles } from "@/lib/photo-upload";
 import type { Restroom } from "@/types/restroom";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -40,6 +41,8 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
   const [overallRating, setOverallRating] = useState(5);
   const [cleanlinessRating, setCleanlinessRating] = useState(5);
   const [note, setNote] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [submittedPhotoCount, setSubmittedPhotoCount] = useState(0);
   const [status, setStatus] = useState<"idle" | "submitting" | "success">("idle");
   const [error, setError] = useState("");
   const [captchaReady, setCaptchaReady] = useState(false);
@@ -63,6 +66,14 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
 
     setStatus("submitting");
     setError("");
+    let photoStoragePaths: string[] = [];
+    try {
+      photoStoragePaths = await uploadPhotos(photos, 3);
+    } catch (photoError) {
+      setStatus("idle");
+      setError(photoError instanceof PhotoUploadError ? photoError.message : "We couldn’t upload the review photos.");
+      return;
+    }
     const response = await fetch("/api/reviews", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -71,15 +82,17 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
         overallRating,
         cleanlinessRating,
         note,
+        photoStoragePaths,
       }),
     });
-    const result = (await response.json()) as { error?: string; submitted?: boolean };
+    const result = (await response.json()) as { error?: string; submitted?: boolean; photoCount?: number };
     if (!response.ok || !result.submitted) {
       setStatus("idle");
       setError(result.error || "We couldn’t save your rating.");
       return;
     }
 
+    setSubmittedPhotoCount(Number(result.photoCount || 0));
     setStatus("success");
   }
 
@@ -91,7 +104,7 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
           <div className="success-state compact">
             <div className="success-icon"><Check size={28} /></div>
             <h2 id="review-title">Rating posted</h2>
-            <p>Your update helps everyone know what to expect.</p>
+            <p>Your update helps everyone know what to expect.{submittedPhotoCount > 0 ? " Your photos were sent for a quick community-safety review." : ""}</p>
             <button className="button button-primary" onClick={onClose}>Done</button>
           </div>
         ) : (
@@ -105,6 +118,25 @@ export function ReviewDialog({ restroom, user, onClose, onNeedsAuth }: ReviewDia
               <label>
                 <span>Anything people should know? <small>optional</small></span>
                 <textarea maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="Soap was stocked and the accessible stall was open." rows={3} value={note} />
+              </label>
+              <label className="photo-upload review-photo-upload">
+                <Camera size={21} />
+                <span><strong>{photos.length ? `${photos.length} review photo${photos.length === 1 ? "" : "s"} selected` : "Add review photos"}</strong><small>Up to 3 · JPG, PNG, or WebP · avoid faces</small></span>
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(event) => {
+                    const nextPhotos = Array.from(event.target.files || []);
+                    try {
+                      setPhotos(validatePhotoFiles(nextPhotos, 3));
+                      setError("");
+                    } catch (photoError) {
+                      setPhotos([]);
+                      setError(photoError instanceof PhotoUploadError ? photoError.message : "Check the selected photos.");
+                    }
+                  }}
+                  type="file"
+                />
               </label>
               <CaptchaWidget onVerified={setCaptchaReady} />
               {error && <p className="form-error" role="alert">{error}</p>}

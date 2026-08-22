@@ -1,5 +1,6 @@
 import { captchaRequiredResponse, hasCaptchaSession } from "@/lib/security/captcha";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
+import { InvalidStoredPhoto, removeUploadedPhotos, verifyUploadedPhotos } from "@/lib/server/photo-storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
     overallRating?: unknown;
     cleanlinessRating?: unknown;
     note?: unknown;
+    photoStoragePaths?: unknown;
   } | null;
   const restroomId = typeof body?.restroomId === "string" ? body.restroomId : "";
   const overallRating = Number(body?.overallRating);
@@ -40,6 +42,15 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
   if (!admin) return Response.json({ error: "Ratings are not configured." }, { status: 503 });
+  let uploadedPaths: string[] = [];
+  let uploadedPhotos: Awaited<ReturnType<typeof verifyUploadedPhotos>> = [];
+  try {
+    uploadedPhotos = await verifyUploadedPhotos(admin, authData.user.id, body?.photoStoragePaths, 3);
+    uploadedPaths = uploadedPhotos.map((photo) => photo.path);
+  } catch (error) {
+    if (error instanceof InvalidStoredPhoto) return Response.json({ error: error.message }, { status: 400 });
+    return Response.json({ error: "We couldn’t validate the review photos." }, { status: 500 });
+  }
   const { data: restroom } = await admin.from("restrooms").select("id,status").eq("id", restroomId).single();
   let ratingAllowed = restroom?.status === "published";
   if (restroom && !ratingAllowed) {
@@ -56,10 +67,29 @@ export async function POST(request: Request) {
     ratingAllowed = Boolean(activePromotion);
   }
   if (!restroom || !ratingAllowed) {
+    await removeUploadedPhotos(admin, uploadedPaths);
     return Response.json({ error: "This restroom is not available for ratings." }, { status: 404 });
   }
 
-  const { error } = await admin.from("reviews").upsert({
+  const { data: existingReview } = await admin
+    .from("reviews")
+    .select("id")
+    .eq("restroom_id", restroomId)
+    .eq("user_id", authData.user.id)
+    .maybeSingle();
+  if (existingReview && uploadedPhotos.length > 0) {
+    const { count } = await admin
+      .from("community_photos")
+      .select("id", { count: "exact", head: true })
+      .eq("review_id", existingReview.id)
+      .in("status", ["pending", "published"]);
+    if ((count || 0) + uploadedPhotos.length > 3) {
+      await removeUploadedPhotos(admin, uploadedPaths);
+      return Response.json({ error: "A review can include up to three photos." }, { status: 400 });
+    }
+  }
+
+  const { data: review, error } = await admin.from("reviews").upsert({
     restroom_id: restroomId,
     user_id: authData.user.id,
     overall_rating: overallRating,
@@ -67,10 +97,26 @@ export async function POST(request: Request) {
     note: note || null,
     status: "published",
     updated_at: new Date().toISOString(),
-  }, { onConflict: "restroom_id,user_id" });
-  if (error) {
-    console.error("Review submission failed", { error: error.message });
+  }, { onConflict: "restroom_id,user_id" }).select("id").single();
+  if (error || !review) {
+    await removeUploadedPhotos(admin, uploadedPaths);
+    console.error("Review submission failed", { error: error?.message || "Review was not returned" });
     return Response.json({ error: "We couldn’t save your rating. Please try again." }, { status: 500 });
   }
-  return Response.json({ submitted: true });
+  if (uploadedPhotos.length > 0) {
+    const { error: photoError } = await admin.from("community_photos").insert(uploadedPhotos.map((photo) => ({
+      restroom_id: restroomId,
+      review_id: review.id,
+      user_id: authData.user.id,
+      storage_path: photo.path,
+      public_url: photo.publicUrl,
+      status: "pending",
+    })));
+    if (photoError) {
+      await removeUploadedPhotos(admin, uploadedPaths);
+      console.error("Review photo attachment failed", { error: photoError.message });
+      return Response.json({ error: "Your rating was saved, but the photos could not be attached." }, { status: 500 });
+    }
+  }
+  return Response.json({ submitted: true, photoCount: uploadedPhotos.length });
 }

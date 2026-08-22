@@ -2,6 +2,7 @@ import { captchaRequiredResponse, hasCaptchaSession } from "@/lib/security/captc
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 import { formatHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } from "@/lib/hours";
 import { timeZoneAt } from "@/lib/server/timezone";
+import { InvalidStoredPhoto, verifyUploadedPhotos } from "@/lib/server/photo-storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -65,24 +66,17 @@ export async function POST(request: Request) {
     if (accessCode && !features.includes("Code available")) features.push("Code available");
 
     const candidatePath = typeof body.coverPhotoStoragePath === "string" ? body.coverPhotoStoragePath : "";
+    let coverPhotoUrl: string | null = null;
     if (candidatePath) {
-      const prefix = `${authData.user.id}/`;
-      const fileName = candidatePath.slice(prefix.length);
-      if (!candidatePath.startsWith(prefix) || !/^[0-9a-f-]+\.(jpg|png|webp)$/.test(fileName)) {
-        throw new InvalidSubmission("The uploaded photo is invalid.");
+      try {
+        const [verifiedPhoto] = await verifyUploadedPhotos(admin, authData.user.id, [candidatePath], 1);
+        uploadedPath = verifiedPhoto.path;
+        coverPhotoUrl = verifiedPhoto.publicUrl;
+      } catch (error) {
+        if (error instanceof InvalidStoredPhoto) throw new InvalidSubmission(error.message);
+        throw error;
       }
-      const { data: objects, error: storageError } = await admin.storage
-        .from("restroom-photos")
-        .list(authData.user.id, { limit: 1, search: fileName });
-      if (storageError || !objects?.some((object) => object.name === fileName)) {
-        throw new InvalidSubmission("Finish uploading the photo before submitting.");
-      }
-      uploadedPath = candidatePath;
     }
-
-    const coverPhotoUrl = uploadedPath
-      ? admin.storage.from("restroom-photos").getPublicUrl(uploadedPath).data.publicUrl
-      : null;
     const { data: createdRestroom, error } = await admin.from("restrooms").insert({
       name: text(body.name, "Name", 2, 120),
       address: text(body.address, "Address", 5, 240),
