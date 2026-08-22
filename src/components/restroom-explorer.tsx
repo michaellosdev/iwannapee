@@ -370,7 +370,7 @@ function RestroomDetail({
                   </button>
                 )}
                 {restroom.promotion.qrTargetUrl && (
-                  <a aria-label="Open advertised QR destination" href={restroom.promotion.qrTargetUrl} rel="noreferrer" target="_blank">
+                  <a aria-label="Open promoted QR destination" href={restroom.promotion.qrTargetUrl} rel="noreferrer" target="_blank">
                     <QRCodeSVG bgColor="#ffffff" fgColor="#17231d" level="M" marginSize={1} size={90} value={restroom.promotion.qrTargetUrl} />
                   </a>
                 )}
@@ -830,7 +830,7 @@ export function RestroomExplorer({ adOffer }: { adOffer: AdvertisingOffer }) {
           <h2>A useful restroom stop can become a new customer.</h2>
           <p>Start sponsored for {formatPrice(adOffer.priceCents)}, then add an optional one-time placement bid for one of {adOffer.sponsoredSlotCount} nearby sponsored slots. Welcome visitors with a discount, promo code, or QR link.</p>
           <div className="business-promotion-price"><strong>{formatPrice(adOffer.priceCents)}</strong><span>{adOffer.durationDays} days<br />one-time payment</span></div>
-          <button className="button button-primary" onClick={beginAdvertising}><BadgeDollarSign size={18} /> Build your local ad</button>
+          <button className="button button-primary" onClick={beginAdvertising}><BadgeDollarSign size={18} /> Create your promotion</button>
         </div>
         <div className="business-promotion-demo" aria-label="Sponsored restroom example">
           <div className="business-promotion-demo-card">

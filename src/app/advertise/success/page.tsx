@@ -56,7 +56,7 @@ export default async function AdvertisingSuccessPage({
         <div className={active ? "checkout-result-icon paid" : "checkout-result-icon"}>
           {active ? <CheckCircle2 size={32} /> : <CircleAlert size={32} />}
         </div>
-        <p className="eyebrow">Local advertising</p>
+        <p className="eyebrow">Business promotion</p>
         <h1>{active ? "Your restroom promotion is live." : "We’re confirming your payment."}</h1>
         <p>
           {active

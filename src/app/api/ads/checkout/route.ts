@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   if (!supabase) return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
 
   const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError || !authData.user) return NextResponse.json({ error: "Sign in before creating an advertisement." }, { status: 401 });
+  if (authError || !authData.user) return NextResponse.json({ error: "Sign in before creating a business promotion." }, { status: 401 });
 
   const limit = await consumeRateLimit(request, {
     bucket: "advertising-checkout",
