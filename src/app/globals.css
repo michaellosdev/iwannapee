@@ -3745,6 +3745,11 @@ a {
   color: var(--green);
 }
 
+.campaign-status-pending_payment {
+  background: #fff1b8;
+  color: #665000;
+}
+
 .business-campaign-dates {
   align-items: flex-end;
   display: flex;
@@ -3764,6 +3769,66 @@ a {
   border-radius: 10px;
   margin-top: 15px;
   padding: 10px 12px;
+}
+
+.business-payment-resume {
+  align-items: center;
+  background: #fff9dd;
+  border: 1px solid #eed36a;
+  border-radius: 13px;
+  display: flex;
+  gap: 11px;
+  margin-top: 12px;
+  padding: 11px 12px;
+}
+
+.business-payment-resume-icon {
+  align-items: center;
+  background: var(--yellow);
+  border-radius: 9px;
+  color: #3e3407;
+  display: flex;
+  flex: 0 0 auto;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.business-payment-resume-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.business-payment-resume-copy strong {
+  font-size: 11px;
+}
+
+.business-payment-resume-copy small {
+  color: #6b6033;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.business-payment-resume-copy .business-payment-resume-error {
+  color: #9b2c2c;
+  font-weight: 700;
+}
+
+.business-payment-resume-button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 10px 14px;
+}
+
+.business-payment-resume-spinner {
+  animation: business-payment-spin 0.8s linear infinite;
+}
+
+@keyframes business-payment-spin {
+  to { transform: rotate(360deg); }
 }
 
 .business-campaign-metrics {
@@ -5074,6 +5139,20 @@ a {
 
   .business-campaign-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .business-payment-resume {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .business-payment-resume-copy {
+    justify-content: center;
+  }
+
+  .business-payment-resume-button {
+    justify-content: center;
+    width: 100%;
   }
 
   .business-dashboard-empty {

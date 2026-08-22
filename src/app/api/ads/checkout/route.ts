@@ -5,6 +5,7 @@ import { formatHoursSchedule, InvalidHoursSchedule, normalizeHoursSchedule } fro
 import { captchaRequiredResponse, hasCaptchaSession } from "@/lib/security/captcha";
 import { consumeRateLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 import { timeZoneAt } from "@/lib/server/timezone";
+import { createPromotionCheckoutSession } from "@/lib/stripe/promotion-checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -99,7 +100,6 @@ export async function POST(request: Request) {
     }
     const timezone = hoursSchedule.mode === "scheduled" ? timeZoneAt(latitude, longitude) : null;
     const supportAmountCents = requestedSupportAmount;
-    const totalPriceCents = offer.priceCents + placementBidCents + supportAmountCents;
     const campaign = {
       created_by: authData.user.id,
       business_name: textField(body.businessName, "Business name", 2, 120),
@@ -136,74 +136,15 @@ export async function POST(request: Request) {
     const stripe = new Stripe(stripeSecret, { maxNetworkRetries: 2 });
     const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
     const siteUrl = configuredSiteUrl?.startsWith("http") ? configuredSiteUrl.replace(/\/$/, "") : new URL(request.url).origin;
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: offer.priceCents,
-          product_data: {
-            name: "IWANNAPEE sponsored restroom listing",
-            description: `${offer.durationDays}-day location-based promotion for ${campaign.business_name}`,
-          },
-        },
-      },
-    ];
-    if (placementBidCents > 0) {
-      lineItems.push({
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: placementBidCents,
-          product_data: {
-            name: "IWANNAPEE priority placement bid",
-            description: "One-time bid for ranking within eligible local sponsored slots",
-          },
-        },
-      });
-    }
-    if (supportAmountCents > 0) {
-      lineItems.push({
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: supportAmountCents,
-          product_data: {
-            name: "Support IWANNAPEE",
-            description: "Optional project support for better restroom data and map improvements",
-          },
-        },
-      });
-    }
 
     try {
-      const session = await stripe.checkout.sessions.create(
-        {
-          mode: "payment",
-          integration_identifier: process.env.STRIPE_INTEGRATION_IDENTIFIER || "iwannapee_qnrvkzpt",
-          client_reference_id: createdCampaign.id,
-          customer_email: authData.user.email,
-          success_url: `${siteUrl}/business/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${siteUrl}/?business=1&checkout=cancelled`,
-          line_items: lineItems,
-          metadata: {
-            campaign_id: createdCampaign.id,
-            user_id: authData.user.id,
-            placement_bid_cents: String(placementBidCents),
-            support_amount_cents: String(supportAmountCents),
-            total_price_cents: String(totalPriceCents),
-          },
-          payment_intent_data: {
-            metadata: {
-              campaign_id: createdCampaign.id,
-              user_id: authData.user.id,
-              placement_bid_cents: String(placementBidCents),
-              support_amount_cents: String(supportAmountCents),
-            },
-          },
-        },
-        { idempotencyKey: `iwannapee-checkout-${createdCampaign.id}` },
-      );
+      const session = await createPromotionCheckoutSession({
+        campaign: { ...campaign, id: createdCampaign.id },
+        customerEmail: authData.user.email,
+        idempotencyKey: `iwannapee-checkout-${createdCampaign.id}`,
+        siteUrl,
+        stripe,
+      });
 
       const { error: sessionUpdateError } = await admin
         .from("advertising_campaigns")

@@ -1,0 +1,118 @@
+import "server-only";
+
+import Stripe from "stripe";
+
+export type PromotionCheckoutCampaign = {
+  id: string;
+  created_by: string;
+  business_name: string;
+  duration_days: number;
+  price_cents: number;
+  placement_bid_cents: number;
+  support_amount_cents: number;
+  currency: string;
+};
+
+export function promotionCheckoutTotal(campaign: PromotionCheckoutCampaign) {
+  return campaign.price_cents + campaign.placement_bid_cents + campaign.support_amount_cents;
+}
+
+export function checkoutSessionMatchesCampaign(
+  session: Stripe.Checkout.Session,
+  campaign: PromotionCheckoutCampaign,
+) {
+  const total = promotionCheckoutTotal(campaign);
+  return session.mode === "payment"
+    && session.client_reference_id === campaign.id
+    && session.metadata?.campaign_id === campaign.id
+    && session.metadata?.user_id === campaign.created_by
+    && session.metadata?.placement_bid_cents === String(campaign.placement_bid_cents)
+    && session.metadata?.support_amount_cents === String(campaign.support_amount_cents)
+    && session.metadata?.total_price_cents === String(total)
+    && session.amount_total === total
+    && session.currency === campaign.currency;
+}
+
+export async function createPromotionCheckoutSession({
+  campaign,
+  customerEmail,
+  idempotencyKey,
+  siteUrl,
+  stripe,
+}: {
+  campaign: PromotionCheckoutCampaign;
+  customerEmail?: string;
+  idempotencyKey: string;
+  siteUrl: string;
+  stripe: Stripe;
+}) {
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    {
+      quantity: 1,
+      price_data: {
+        currency: campaign.currency,
+        unit_amount: campaign.price_cents,
+        product_data: {
+          name: "IWANNAPEE sponsored restroom listing",
+          description: `${campaign.duration_days}-day location-based promotion for ${campaign.business_name}`,
+        },
+      },
+    },
+  ];
+
+  if (campaign.placement_bid_cents > 0) {
+    lineItems.push({
+      quantity: 1,
+      price_data: {
+        currency: campaign.currency,
+        unit_amount: campaign.placement_bid_cents,
+        product_data: {
+          name: "IWANNAPEE priority placement bid",
+          description: "One-time bid for ranking within eligible local sponsored slots",
+        },
+      },
+    });
+  }
+
+  if (campaign.support_amount_cents > 0) {
+    lineItems.push({
+      quantity: 1,
+      price_data: {
+        currency: campaign.currency,
+        unit_amount: campaign.support_amount_cents,
+        product_data: {
+          name: "Support IWANNAPEE",
+          description: "Optional project support for better restroom data and map improvements",
+        },
+      },
+    });
+  }
+
+  return stripe.checkout.sessions.create(
+    {
+      mode: "payment",
+      integration_identifier: process.env.STRIPE_INTEGRATION_IDENTIFIER || "iwannapee_qnrvkzpt",
+      client_reference_id: campaign.id,
+      customer_email: customerEmail,
+      success_url: `${siteUrl}/business/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl}/business`,
+      line_items: lineItems,
+      metadata: {
+        campaign_id: campaign.id,
+        user_id: campaign.created_by,
+        placement_bid_cents: String(campaign.placement_bid_cents),
+        support_amount_cents: String(campaign.support_amount_cents),
+        total_price_cents: String(promotionCheckoutTotal(campaign)),
+      },
+      payment_intent_data: {
+        metadata: {
+          campaign_id: campaign.id,
+          user_id: campaign.created_by,
+          placement_bid_cents: String(campaign.placement_bid_cents),
+          support_amount_cents: String(campaign.support_amount_cents),
+        },
+      },
+    },
+    { idempotencyKey },
+  );
+}

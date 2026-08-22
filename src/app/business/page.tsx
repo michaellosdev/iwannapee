@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Clipboard, ExternalLink, Eye, Megaphone, MousePointerClick, Plus, QrCode } from "lucide-react";
+import { ResumePromotionPaymentButton } from "@/components/resume-promotion-payment-button";
 import { formatPrice } from "@/lib/advertising";
 import { createClient } from "@/lib/supabase/server";
 
@@ -92,6 +93,9 @@ export default async function BusinessAnalyticsPage() {
                 </div>
               </div>
               <p className="business-campaign-headline">“{campaign.headline}”</p>
+              {campaign.status === "pending_payment" && !campaign.is_test ? (
+                <ResumePromotionPaymentButton campaignId={campaign.campaign_id} />
+              ) : null}
               <div className="business-campaign-metrics">
                 <div><Eye size={17} /><span><strong>{metric(campaign.impression_count)}</strong><small>Appeared</small></span></div>
                 <div><MousePointerClick size={17} /><span><strong>{metric(campaign.detail_open_count)}</strong><small>Opened</small></span></div>

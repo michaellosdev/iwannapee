@@ -62,7 +62,8 @@ async function cancelPendingCampaign(session: Stripe.Checkout.Session) {
     .from("advertising_campaigns")
     .update({ status: "cancelled", updated_at: new Date().toISOString() })
     .eq("id", campaignId)
-    .eq("status", "pending_payment");
+    .eq("status", "pending_payment")
+    .eq("stripe_checkout_session_id", session.id);
   if (error) throw error;
 }
 
