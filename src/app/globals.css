@@ -6133,11 +6133,16 @@ body {
   filter: saturate(1.12) hue-rotate(154deg) drop-shadow(0 18px 24px rgba(0, 72, 118, 0.2));
 }
 
-.world-ranking-section,
-.how-section {
+.world-ranking-section {
   background:
     radial-gradient(circle at 92% 8%, rgba(102, 222, 255, 0.16), transparent 18rem),
     #fff;
+}
+
+.how-section {
+  background:
+    radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.62), transparent 18rem),
+    linear-gradient(135deg, #d5f4ff 0%, #eaf8ff 52%, #c7efff 100%);
 }
 
 .explorer-section,
