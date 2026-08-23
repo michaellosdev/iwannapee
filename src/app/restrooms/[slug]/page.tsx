@@ -109,7 +109,14 @@ export default async function PublicRestroomPage({ params }: { params: Promise<{
         </section>
       ) : null}
 
-      <RestroomShareTools address={restroom.address} canonicalUrl={canonicalUrl} name={restroom.name} verifiedAt={verified ? restroom.community_verified_at : null} />
+      <RestroomShareTools
+        address={restroom.address}
+        canonicalUrl={canonicalUrl}
+        name={restroom.name}
+        rating={restroom.rating}
+        reviewCount={restroom.review_count}
+        verifiedAt={verified ? restroom.community_verified_at : null}
+      />
 
       <section className="public-review-section">
         <div><p className="eyebrow">Community reviews</p><h2>What visitors say</h2></div>
